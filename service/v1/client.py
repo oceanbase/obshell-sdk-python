@@ -251,7 +251,8 @@ class ClientV1(Client):
         return self.wait_dag_succeed(dag.generic_id)
 
     def stop(self,
-             level: str, target: list,
+             level: str,
+             target: list,
              force=False,
              terminate=False,
              force_pass_dag=None) -> DagDetailDTO:
@@ -293,7 +294,8 @@ class ClientV1(Client):
         return self.handle_task_ret_request(req)
 
     def stop_sync(self,
-                  level: str, target: list,
+                  level: str,
+                  target: list,
                   force=False,
                   terminate=False,
                   force_pass_dag=None) -> DagDetailDTO:
@@ -310,7 +312,8 @@ class ClientV1(Client):
         return self.handle_task_ret_request(req)
 
     def scale_out_sync(self,
-                       ip: str, port: str,
+                       ip: str,
+                       port: str,
                        zone: str,
                        ob_configs: dict) -> DagDetailDTO:
         dag = self.scale_out(ip, port, zone, ob_configs)
@@ -323,10 +326,8 @@ class ClientV1(Client):
         req.headers = headers
         return self._handle_ret_request(req, UpgradePkgInfo)
 
-    def upgrade_agent_check(self,
-                            version: str,
-                            release: str,
-                            upgrade_dir=None):
+    def upgrade_agent_check(
+        self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         req = self.create_request("/api/v1/agent/upgrade/check", "POST",
                                   data={
                                       "version": version,
@@ -335,7 +336,8 @@ class ClientV1(Client):
                                     })
         return self.handle_task_ret_request(req)
 
-    def upgrade_agent_check_sync(self, version: str, release: str, upgrade_dir=None):
+    def upgrade_agent_check_sync(
+        self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         dag = self.upgrade_agent_check(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -348,11 +350,13 @@ class ClientV1(Client):
                                     })
         return self.handle_task_ret_request(req)
 
-    def upgrade_agent_sync(self, version: str, release: str, upgrade_dir=None):
+    def upgrade_agent_sync(
+        self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         dag = self.upgrade_agent(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def upgrade_ob_check(self, version: str, release: str, upgrade_dir=None):
+    def upgrade_ob_check(
+        self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         """ check before upgrading ob
         Args:
             version (str): The version of the observer to be upgraded to
@@ -373,7 +377,8 @@ class ClientV1(Client):
                                     })
         return self.handle_task_ret_request(req)
 
-    def upgrade_ob_check_sync(self, version: str, release: str, upgrade_dir=None):
+    def upgrade_ob_check_sync(
+        self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         dag = self.upgrade_ob_check(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -494,15 +499,15 @@ class ClientV1(Client):
                                   data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
-    def get_ob_info(self):
+    def get_ob_info(self) -> ObInfo:
         req = self.create_request("/api/v1/ob/info", "GET")
         return self._handle_ret_request(req, ObInfo)
 
-    def get_status(self):
+    def get_status(self) -> AgentStatusWithOb:
         req = self.create_request("/api/v1/status", "GET", need_auth=False)
         return self._handle_ret_request(req, AgentStatusWithOb)
 
-    def get_info(self):
+    def get_info(self) -> AgentStatusWithZone:
         req = self.create_request("/api/v1/info", "GET", need_auth=False)
         return self._handle_ret_request(req, AgentStatusWithZone)
 
@@ -530,8 +535,10 @@ class ClientV1(Client):
                     raise e
 
     # Aggregation function
-    def aggregate_upgrade_agent(self, pkg: str,
-                                version: str, release: str,
+    def aggregate_upgrade_agent(self,
+                                pkg: str,
+                                version: str,
+                                release: str,
                                 upgrade_dir=None) -> DagDetailDTO:
         """ aggregate upgrade agent
         Args:

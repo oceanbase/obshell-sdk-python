@@ -110,8 +110,7 @@ class Client:
                                  f"is not supported by agent {agent.version}"))
 
     def execute(self, req: BaseRequest):
-        """
-        Execute a request.
+        """Executes a request.
 
         Args:
             req (BaseRequest): The request to execute.
