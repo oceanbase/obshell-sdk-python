@@ -18,13 +18,14 @@ import json
 import time
 import base64
 from urllib.parse import urlparse
-
 import requests
+
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
+
 
 import sdk.auth.base as base
 from model.info import Agentidentity
@@ -32,16 +33,18 @@ from utils.info import get_public_key, get_info
 
 
 class PasswordAuth(base.Auth):
-    
-    def __init__(self) -> None:
+    def __init__(self, password: str, version=None) -> None:
         super().__init__(base.AuthType.PASSWORD, [base.AuthVersion.V1, base.AuthVersion.V2])
+        self.password = password
+        if version:
+            super().set_version(version)
 
     def auth(self, request) -> None:
         if self.method is None:
-            if self.version not in _AUTHS:
-                raise base.AuthError(f"Unsupported auth version: {self.version}")
-            self.method = _AUTHS[self.version]()
-
+            version = self.get_version()
+            if version not in _AUTHS:
+                raise base.AuthError(f"Unsupported auth version: {version}")
+            self.method = _AUTHS[version](self.password)
         self.method.auth(request)
 
 
@@ -73,46 +76,66 @@ class PasswordAuthMethod:
 
 class PasswordAuthMethodV1(PasswordAuthMethod):
 
-    max_chunk_size = 53
-
     def auth(self, req: requests.Request) -> None:
-        self._check()
-        self._init_pk()
+        self._check(req.server)
+        self._init_pk(req.server)
         auth_json = json.dumps({'password': self.password, 'ts': int(time.time()) + 5})
         key = RSA.import_key(base64.b64decode(self.pk))
         cipher = PKCS1_cipher.new(key)
-        req.headers['X-OCS-Auth'] = base64.b64encode(cipher.encrypt(bytes(auth_json.encode('utf8')))).decode('utf8')
-
+        req.headers['X-OCS-Auth'] = base64.b64encode(
+                                    cipher.encrypt(bytes(auth_json.encode('utf8')))
+                                    ).decode('utf8')
+        if not req.original_data:
+            req.original_data = req.data
+        if req.original_data:
+            if isinstance(req.original_data, dict):
+                req.data = json.dumps(req.original_data)
+            elif isinstance(req.original_data, str):
+                req.data = req.original_data
 
 class PasswordAuthMethodV2(PasswordAuthMethod):
+
+    max_chunk_size = 53
 
     def encrypt_header(self, headers: str) -> str:
         key = RSA.import_key(base64.b64decode(self.pk))
         cipher = PKCS1_cipher.new(key)
         auth_json = json.dumps(headers)
         data_to_encrypt = bytes(auth_json.encode('utf8'))
-        chunks = [data_to_encrypt[i:i + self.max_chunk_size] for i in range(0, len(data_to_encrypt), self.max_chunk_size)]
+        chunks = [data_to_encrypt[i:i + self.max_chunk_size]
+                  for i in range(0, len(data_to_encrypt), self.max_chunk_size)]
         encrypted_chunks = [cipher.encrypt(chunk) for chunk in chunks]
         encrypted = b''.join(encrypted_chunks)
         return base64.b64encode(encrypted).decode('utf-8')
-    
+
     def auth(self, req: requests.Request) -> None:
-        self._check()
-        self._init_pk()
+        self._check(req.server)
+        self._init_pk(req.server)
         aes_key = get_random_bytes(16)
         aes_iv = get_random_bytes(16)
         headers = {
             'auth': self.password,
-            'ts': int(time.time()) + 5,
+            'ts': str(int(time.time()) + 5),
             'uri': urlparse(req.url).path,
             'keys': base64.b64encode(aes_key+aes_iv).decode('utf-8')
         }
         req.headers['X-OCS-Header'] = self.encrypt_header(headers)
 
-        body = json.dumps(req.data)
         cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-        req.body = base64.b64encode(cipher.encrypt(pad(bytes(body.encode('utf8')), AES.block_size))).decode('utf8')
-        req.data = None
+        if not req.original_data:
+            req.original_data = req.data
+
+        if req.original_data:
+            body = None
+            if isinstance(req.original_data, dict):
+                body = json.dumps(req.original_data).encode('utf8')
+            elif isinstance(req.original_data, str):
+                body = req.original_data.encode('utf8')
+            elif isinstance(req.original_data, bytes):
+                body = req.original_data
+            else:
+                raise Exception(f"Unsupported data type: {type(req.original_data)}")
+            req.data = base64.b64encode(cipher.encrypt(pad(bytes(body), AES.block_size))).decode('utf8')
         return
 
 
@@ -120,4 +143,3 @@ _AUTHS = {
     base.AuthVersion.V1: PasswordAuthMethodV1,
     base.AuthVersion.V2: PasswordAuthMethodV2,
 }
-
