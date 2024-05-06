@@ -95,8 +95,11 @@ class ClientV1(Client):
             if cls is None:
                 return True
             else:
+                contents = resp.json().get('data', {}).get('contents', [])
+                if not contents:
+                    return []
                 return [cls.from_dict(data)
-                        for data in resp.json().get('data').get('contents', [])]
+                        for data in resp.json().get('data', {}).get('contents', [])]
         else:
             raise OBShellHandleError(resp.json()['error'])
 
