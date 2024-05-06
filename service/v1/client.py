@@ -134,24 +134,22 @@ class ClientV1(Client):
 
     # Function for OpenAPI
     def join(self, ip: str, port: int, zone: str) -> DagDetailDTO:
-        c = ClientV1(ip, port)
-        c.set_auth(self.get_auth())
-        req = c.create_request("/api/v1/agent/join", "POST",
-                               data={
-                                   "agentInfo": {"ip": self.host, "port": self.port},
-                                   "zoneName": zone
-                                })
-        return c.handle_task_ret_request(req)
+        try:
+            c = ClientV1(ip, port)
+            auth = self.get_auth()
+            c.set_auth(auth)
+            req = c.create_request("/api/v1/agent/join", "POST",
+                                data={
+                                    "agentInfo": {"ip": self.host, "port": self.port},
+                                    "zoneName": zone
+                                    })
+            dag = c.handle_task_ret_request(req)
+        finally:
+            auth.reset_method()
+        return dag
 
     def join_sync(self, ip: str, port: int, zone: str) -> DagDetailDTO:
-        c = ClientV1(ip, port)
-        c.set_auth(self.get_auth())
-        req = c.create_request("/api/v1/agent/join", "POST",
-                               data={
-                                   "agentInfo": {"ip": self.host, "port": self.port},
-                                   "zoneName": zone
-                                })
-        dag = c.handle_task_ret_request(req)
+        dag = self.join(ip, port, zone)
         return self.wait_dag_succeed(dag.generic_id)
 
     def remove(self, ip: str, port: int) -> DagDetailDTO:
@@ -459,7 +457,7 @@ class ClientV1(Client):
         return self._handle_ret_request(req, NodeDetailDTO)
 
     def get_sub_task(self, generic_id: str, show_detail=True) -> TaskDetailDTO:
-        req = self.create_request(f"/api/v1/task/subtask/{generic_id}", "GET",
+        req = self.create_request(f"/api/v1/task/sub_task/{generic_id}", "GET",
                                   data={"showDetail": show_detail})
         return self._handle_ret_request(req, TaskDetailDTO)
 

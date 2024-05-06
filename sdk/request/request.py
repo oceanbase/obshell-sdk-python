@@ -20,10 +20,13 @@ class BaseRequest:
                  port: int = 2886,
                  protocol: str = "http",
                  need_auth: bool = False,
-                 data: dict = {},
-                 headers: dict = {},
-                 timeout: int = 100000,
-                 **kwargs):
+                 data: dict = None,
+                 headers: dict = None,
+                 timeout: int = 100000):
+        if data is None:
+            data = {}
+        if headers is None:
+            headers = {}
         self.uri = uri
         self.method = method
         self.host = host
@@ -37,7 +40,7 @@ class BaseRequest:
 
     @property
     def url(self):
-        return f"http://{self.server}{self.uri}"
+        return f"{self.protocol}://{self.server}{self.uri}"
 
     @property
     def server(self):
