@@ -34,7 +34,8 @@ from utils.info import get_public_key, get_info
 
 class PasswordAuth(base.Auth):
     def __init__(self, password: str, version=None) -> None:
-        super().__init__(base.AuthType.PASSWORD, [base.AuthVersion.V1, base.AuthVersion.V2])
+        super().__init__(base.AuthType.PASSWORD,
+                         [base.AuthVersion.V1, base.AuthVersion.V2])
         self.password = password
         if version:
             super().set_version(version)
@@ -135,7 +136,9 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
                 body = req.original_data
             else:
                 raise Exception(f"Unsupported data type: {type(req.original_data)}")
-            req.data = base64.b64encode(cipher.encrypt(pad(bytes(body), AES.block_size))).decode('utf8')
+            req.data = base64.b64encode(
+                cipher.encrypt(pad(bytes(body), AES.block_size))
+                ).decode('utf8')
         return
 
 

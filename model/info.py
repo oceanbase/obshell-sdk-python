@@ -21,7 +21,11 @@ from model.version import Version
 
 class AgentInfo:
 
-    def __init__(self, identity: str, version: str, auth_version: str, supported_auth: List[str]):
+    def __init__(self,
+                 identity: str,
+                 version: str,
+                 auth_version: str,
+                 supported_auth: List[str]):
         self.identity = Agentidentity(identity)
         self.version = Version(version)
         self.auth_version = auth_version
@@ -57,9 +61,10 @@ class ServerConfig:
         return ServerConfig(data)
 
     def __str__(self) -> str:
-        return ("{"+f"svr_ip: {self.svr_ip}, svr_port: {self.svr_port}, sql_port: {self.sql_port}, "
-                f"agent_port: {self.agent_port}, with_rootserver: {self.with_rootserver}, "
-                f"status: {self.status}, build_version: {self.build_version}"+"}")
+        return ("{"+f"svr_ip: {self.svr_ip}, svr_port: {self.svr_port},"
+                f"sql_port: {self.sql_port}, agent_port: {self.agent_port}, "
+                f"with_rootserver: {self.with_rootserver}, status: {self.status}, "
+                f"build_version: {self.build_version}"+"}")
 
 class ClusterConfig:
 
@@ -101,9 +106,11 @@ class ObInfo:
     def __init__(self, data: dict):
         self.agents = []
         if data.get("agent_info"):
-            self.agents = [AgentInstance.from_dict(agent) for agent in data.get("agent_info", [])]
+            self.agents = ([AgentInstance.from_dict(agent)
+                            for agent in data.get("agent_info", [])])
 
-        self.cluster = ClusterConfig.from_dict(data.get("obcluster_info")) if data.get("obcluster_info") else None
+        self.cluster = (ClusterConfig.from_dict(data.get("obcluster_info"))
+                        if data.get("obcluster_info") else None)
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -142,8 +149,10 @@ class AgentStatusWithOb:
         return AgentStatusWithOb(data)
 
     def __str__(self) -> str:
-        return ("{"+f"agent: {self.agent}, state: {self.state}, version: {self.version}, pid: {self.pid}, "
-               f"start_at: {self.start_at}, ob_state: {self.ob_state}, under_maintenance: {self.under_maintenance}"+"}")
+        return ("{"+f"agent: {self.agent}, state: {self.state}, "
+                f" version: {self.version}, pid: {self.pid}, "
+               f"start_at: {self.start_at}, ob_state: {self.ob_state}, "
+               f"under_maintenance: {self.under_maintenance}"+"}")
 
 class AgentStatusWithZone:
 
@@ -163,6 +172,8 @@ class AgentStatusWithZone:
         return AgentStatusWithZone(data)
 
     def __str__(self) -> str:
-        return ("{"+f"ip: {self.ip}, port: {self.port}, identity: {self.identity}, zone: {self.zone}, "
-                f"state: {self.state}, version: {self.version}, pid: {self.pid}, start_at: {self.start_at}, "
+        return ("{"+f"ip: {self.ip}, port: {self.port}, "
+                f"identity: {self.identity}, zone: {self.zone}, "
+                f"state: {self.state}, version: {self.version}, "
+                f"pid: {self.pid}, start_at: {self.start_at}, "
                 f"home_path: {self.home_path}"+"}")

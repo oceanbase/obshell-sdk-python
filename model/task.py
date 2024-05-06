@@ -1,4 +1,3 @@
-import time
 import json
 from enum import Enum
 
@@ -37,7 +36,8 @@ class TaskStatusDTO:
         return self.state == State.RUNNING_STR.value
 
     def is_finished(self) -> bool:
-        return self.state == State.SUCCEED_STR.value or self.state == State.FAILED_STR.value
+        return (self.state == State.SUCCEED_STR.value or
+                self.state == State.FAILED_STR.value)
 
     def is_run(self) -> bool:
         return self.operator == Operator.RUN_STR.value
@@ -52,7 +52,8 @@ class TaskStatusDTO:
         return self.operator == Operator.CANCEL_STR.value
 
     def __str__(self) -> str:
-        return f"TaskStatusDTO({self.state}, {self.operator}, {self.start_time}, {self.end_time})"
+        return (f"TaskStatusDTO({self.state}, {self.operator}, "
+                f"{self.start_time}, {self.end_time})")
 
 
 class DagDetailDTO(TaskStatusDTO):
@@ -64,7 +65,8 @@ class DagDetailDTO(TaskStatusDTO):
         self.stage = data.get("stage")
         self.max_stage = data.get("max_stage")
         nodes = data.get("nodes")
-        self.nodes = [NodeDetailDTO.from_dict(node) for node in nodes] if nodes is not None else []
+        self.nodes = ([NodeDetailDTO.from_dict(node) for node in nodes]
+                      if nodes is not None else [])
         self.additional_data = data.get("additional_data")
 
     @classmethod
@@ -72,7 +74,11 @@ class DagDetailDTO(TaskStatusDTO):
         return DagDetailDTO(data)
 
     def __str__(self) -> str:
-        return f"DagDetailDTO({self.generic_id}, {self.dag_id}, {self.name}, {self.stage}, {self.max_stage}, {self.nodes}, {self.additional_data})"
+        return ("{"+f"generic_id: {self.generic_id}, dag_id: {self.dag_id}, "
+                f"name: {self.name}, stage: {self.stage}, max_stage: {self.max_stage}, "
+                f"state: {self.state}, operator: {self.operator}, "
+                f"start_time: {self.start_time}, end_time: {self.end_time}, "
+                f"nodes: {self.nodes}, additional_data: {self.additional_data}"+"}")
 
 class NodeDetailDTO(TaskStatusDTO):
     def __init__(self, data: dict):
@@ -81,7 +87,8 @@ class NodeDetailDTO(TaskStatusDTO):
         self.node_id = data.get("node_id")
         self.name = data.get("name")
         sub_tasks = data.get("sub_tasks")
-        self.sub_tasks = [TaskDetailDTO.from_dict(task) for task in sub_tasks] if sub_tasks is not None else []
+        self.sub_tasks = ([TaskDetailDTO.from_dict(task) for task in sub_tasks]
+                          if sub_tasks is not None else [])
         self.additional_data = data.get("additional_data"),
 
     @classmethod
@@ -89,7 +96,11 @@ class NodeDetailDTO(TaskStatusDTO):
         return NodeDetailDTO(data)
 
     def __str__(self) -> str:
-        return f"NodeDetailDTO({self.generic_id}, {self.node_id}, {self.name}, {self.sub_tasks}, {self.additional_data})"
+        return ("{"+f"generic_id: {self.generic_id}, node_id: {self.node_id}, "
+                f"name: {self.name}, state: {self.state}, operator: {self.operator}, "
+                f"start_time: {self.start_time}, end_time: {self.end_time}, "
+                f"sub_tasks: {self.sub_tasks}, "
+                f"additional_data: {self.additional_data}"+"}")
 
 class TaskDetailDTO(TaskStatusDTO):
     def __init__(self, data: dict):
@@ -98,7 +109,8 @@ class TaskDetailDTO(TaskStatusDTO):
         self.task_id = data.get("task_id")
         self.name = data.get("name")
         self.execution_time = data.get("execution_time")
-        self.execute_agent = f"{data.get('execute_agent').get('ip')}:{data.get('execute_agent').get('port')}"
+        self.execute_agent = (f"{data.get('execute_agent').get('ip')}:"
+                              f"{data.get('execute_agent').get('port')}")
         self.task_logs = data.get("task_logs")
         self.additional_data = data.get("additional_data")
 
@@ -108,4 +120,9 @@ class TaskDetailDTO(TaskStatusDTO):
         return TaskDetailDTO(data)
 
     def __str__(self) -> str:
-        return f"TaskDetailDTO({self.generic_id}, {self.task_id}, {self.name}, {self.execution_time}, {self.execute_agent}, {self.task_logs}, {self.additional_data})"
+        return ("{"+f"generic_id: {self.generic_id}, task_id: {self.task_id}, "
+                f"name: {self.name}, state: {self.state}, operator: {self.operator}, "
+                f"start_time: {self.start_time}, end_time: {self.end_time}, "
+                f"execution_time: {self.execution_time}, "
+                f"execute_agent: {self.execute_agent}, task_logs: {self.task_logs}, "
+                f"additional_data: {self.additional_data}"+"}")

@@ -28,7 +28,11 @@ UNAUTHORIZED_ERROR_CODE  = 10008 # unauthorized
 
 class Client:
 
-    def __init__(self, host: str, port:int = 2886, auth = PasswordAuth(""), timeout=None) -> None:
+    def __init__(self,
+                 host: str,
+                 port:int = 2886,
+                 auth = PasswordAuth(""),
+                 timeout=None) -> None:
         """
         Initialize a new Client instance.
 
@@ -64,7 +68,8 @@ class Client:
             return False
         try:
             agent = get_info(f"{self.host}:{self.port}")
-            if agent.version == OBShellVersion.V422 or agent.version == OBShellVersion.V423:
+            if (agent.version == OBShellVersion.V422 or
+                agent.version == OBShellVersion.V423):
                 self.reset_auth() # to confirm the pk and auth version is right
                 resp = self._real_execute(req)
                 if resp.status_code == 200:
@@ -101,7 +106,8 @@ class Client:
                     agent.version == OBShellVersion.V422 or
                     auth.get_version() == AuthVersion.V2 and
                     agent.version == OBShellVersion.V423):
-                raise Exception("Auth version {auth.get_version()} is not supported by agent {agent.version}")
+                raise Exception((f"Auth version {auth.get_version()} "
+                                 f"is not supported by agent {agent.version}"))
 
     def execute(self, req: BaseRequest):
         """
@@ -169,5 +175,6 @@ class Client:
     def _real_execute(self, req: BaseRequest):
         if req.need_auth:
             self.auth.auth(req)
-        resp = requests.request(req.method, req.url, data=req.data, headers=req.headers, timeout=req.timeout)
+        resp = requests.request(req.method, req.url, data=req.data,
+                                headers=req.headers, timeout=req.timeout)
         return resp

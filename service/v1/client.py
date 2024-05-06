@@ -56,7 +56,10 @@ class ClientV1(Client):
 
     DEFAULT_REQUEST_TIMEOUT = 600
 
-    def __init__(self, host: str, port: int = 2886, auth=PasswordAuth(""), timeout=DEFAULT_REQUEST_TIMEOUT):
+    def __init__(self, host: str,
+                 port: int = 2886,
+                 auth=PasswordAuth(""),
+                 timeout=DEFAULT_REQUEST_TIMEOUT):
         super().__init__(host, port, auth=auth, timeout=timeout)
 
     def _set_password_candidate_auth(self, password: str):
@@ -80,7 +83,9 @@ class ClientV1(Client):
         file_name = os.path.basename(pkg_path)
         with open(pkg_path, "rb") as f:
             file = {'file': (file_name, f)}
-            req = requests.Request('POST', f"http://{self.server}/api/v1/ob/pkg/upload", files=file)
+            req = requests.Request('POST',
+                                   f"http://{self.server}/api/v1/ob/pkg/upload",
+                                   files=file)
             prepared = req.prepare()
             return prepared.body, prepared.headers
 
@@ -90,7 +95,8 @@ class ClientV1(Client):
             if cls is None:
                 return True
             else:
-                return [cls.from_dict(data) for data in resp.json().get('data').get('contents', [])]
+                return [cls.from_dict(data)
+                        for data in resp.json().get('data').get('contents', [])]
         else:
             raise OBShellHandleError(resp.json()['error'])
 
@@ -114,11 +120,14 @@ class ClientV1(Client):
                 return f"Task {dag.name} canceled."
             for sub_task in node.sub_tasks:
                 if sub_task.is_failed():
-                    logs = logs + (f"{sub_task.execute_agent} {sub_task.task_logs[len(sub_task.task_logs) - 1]}\n")
+                    logs = logs + (f"{sub_task.execute_agent} "
+                                   f"{sub_task.task_logs[len(sub_task.task_logs) - 1]}\n")
             return logs
 
     def create_request(self, uri: str, method: str, data=None, need_auth = True):
-        return BaseRequest(uri, method, self.host, self.port, data=data, need_auth=need_auth, timeout=self.timeout)
+        return BaseRequest(uri, method,
+                           self.host, self.port,
+                           data=data, need_auth=need_auth, timeout=self.timeout)
 
     def handle_task_ret_request(self, req):
         return self._handle_ret_request(req, DagDetailDTO)
@@ -128,26 +137,37 @@ class ClientV1(Client):
         c = ClientV1(ip, port)
         c.set_auth(self.get_auth())
         req = c.create_request("/api/v1/agent/join", "POST",
-                               data={"agentInfo": {"ip": self.host, "port": self.port},"zoneName": zone})
+                               data={
+                                   "agentInfo": {"ip": self.host, "port": self.port},
+                                   "zoneName": zone
+                                })
         return c.handle_task_ret_request(req)
 
     def join_sync(self, ip: str, port: int, zone: str) -> DagDetailDTO:
         c = ClientV1(ip, port)
         c.set_auth(self.get_auth())
         req = c.create_request("/api/v1/agent/join", "POST",
-                               data={"agentInfo": {"ip": self.host, "port": self.port},"zoneName": zone})
+                               data={
+                                   "agentInfo": {"ip": self.host, "port": self.port},
+                                   "zoneName": zone
+                                })
         dag = c.handle_task_ret_request(req)
         return self.wait_dag_succeed(dag.generic_id)
 
     def remove(self, ip: str, port: int) -> DagDetailDTO:
-        req = self.create_request("/api/v1/agent/remove", "POST", data={"ip": ip, "port": port})
+        req = self.create_request("/api/v1/agent/remove", "POST",
+                                  data={"ip": ip, "port": port})
         return self.handle_task_ret_request(req)
 
     def remove_sync(self, ip: str, port: int) -> DagDetailDTO:
         dag = self.remove(ip, port)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def config_observer(self, configs: dict, level: str, target: list, restart=True) -> DagDetailDTO:
+    def config_observer(self,
+                        configs: dict,
+                        level: str,
+                        target: list,
+                        restart=True) -> DagDetailDTO:
         req = self.create_request("/api/v1/observer/config", "POST",
                                   data={
                                       "observerConfig": configs,
@@ -159,11 +179,18 @@ class ClientV1(Client):
                                     })
         return self.handle_task_ret_request(req)
 
-    def config_observer_sync(self, configs: dict, level: str, target: list, restart=True) -> DagDetailDTO:
+    def config_observer_sync(self,
+                             configs: dict,
+                             level: str,
+                             target: list,
+                             restart=True) -> DagDetailDTO:
         dag = self.config_observer(configs, level, target, restart)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def config_obcluster(self, cluster_name: str, cluster_id: int, root_pwd: str) -> DagDetailDTO:
+    def config_obcluster(self,
+                         cluster_name: str,
+                         cluster_id: int,
+                         root_pwd: str) -> DagDetailDTO:
         req = self.create_request("/api/v1/obcluster/config", "POST",
                                   data={
                                       "clusterName": cluster_name,
@@ -174,7 +201,10 @@ class ClientV1(Client):
         self._set_password_candidate_auth(root_pwd)
         return dag
 
-    def config_obcluster_sync(self, cluster_name: str, cluster_id: int, root_pwd: str) -> DagDetailDTO:
+    def config_obcluster_sync(self,
+                              cluster_name: str,
+                              cluster_id: int,
+                              root_pwd: str) -> DagDetailDTO:
         dag = self.config_obcluster(cluster_name, cluster_id, root_pwd)
         self._set_password_candidate_auth(root_pwd)
         return self.wait_dag_succeed(dag.generic_id)
@@ -190,12 +220,15 @@ class ClientV1(Client):
     def start(self, level: str, target: list, force_pass_dag=None) -> DagDetailDTO:
         """ start specified observer
         Args:
-            level (str, "GLOBAL", "ZONE" or "SERVER"): The level of the target
-            target (list): The targets of the observer to start.
-                            when level is "SERVER", target is the list of ip:port
-                            when level is "ZONE", target is the list of zone name
-                            when level is "GLOBAL", target is []
-            force_pass_dag (list, optional): The dags that need to be forced to pass. Defaults to None.
+             level (str): The level of target
+                - 'SERVER'. target is the list of ip:port
+                - 'ZONE'. target is the list of zone name
+                - 'GLOBAL'. target is []
+
+            target (list): The targets of the observer to stop. seealso level.
+
+            force_pass_dag (list, optional): 
+                The dags that need to be forced to pass. Defaults to None.
         
         Returns:
             DagDetailDTO: task detail
@@ -206,50 +239,63 @@ class ClientV1(Client):
         if force_pass_dag is None:
             force_pass_dag = []
         req = self.create_request("/api/v1/ob/start", "POST",
-                                data={"scope": {"type": level, "target": target}, 
-                                      "forcePassDag": {
-                                          "id": force_pass_dag
-                                      }})
+                                data={
+                                    "scope": {"type": level, "target": target},
+                                    "forcePassDag": {"id": force_pass_dag}
+                                })
         return self.handle_task_ret_request(req)
 
     def start_sync(self, level: str, target: list, force_pass_dag=None) -> DagDetailDTO:
         dag = self.start(level, target, force_pass_dag)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def stop(self, level: str, target: list, force=False, terminate=False, force_pass_dag=None) -> DagDetailDTO:
+    def stop(self,
+             level: str, target: list,
+             force=False,
+             terminate=False,
+             force_pass_dag=None) -> DagDetailDTO:
         """ stop specified observer
         Args:
-            level (str, "GLOBAL", "ZONE" or "SERVER"): The level of target
-            target (list): The targets of the observer to stop.
-                            when level is "SERVER", target is the list of ip:port
-                            when level is "ZONE", target is the list of zone name
-                            when level is "GLOBAL", target is []
-            force (bool, optional): Whether to forcely stop. Defaults to False.
-            terminate (bool, optional): Whether to execute "MINOR FREEZE" before stop the observer. Defaults to False.
-            force_pass_dag (list, optional): The dags that need to be forced to pass. Defaults to None.
+            level (str): The level of target
+                - 'SERVER'. target is the list of ip:port
+                - 'ZONE'. target is the list of zone name
+                - 'GLOBAL'. target is []
+                
+            target (list): The targets of the observer to stop. seealso level.
+                
+            force (bool, optional): 
+                Whether to forcely stop. Defaults to False.
+            
+            terminate (bool, optional): 
+                Whether to execute "MINOR FREEZE" before stop the observer. 
+                Defaults to False.
+
+            force_pass_dag (list, optional): 
+                The dags that need to be forced to pass. 
+                Defaults to None.
         
         Returns:
             DagDetailDTO: task detail
         
         Raises:
-            UsageError: force and terminate cannot be set at the same time
             OBShellHandleError: error message
         """
         if force_pass_dag is None:
             force_pass_dag = []
-        if force and terminate:
-            raise UsageError("force and terminate cannot be set at the same time")
         req = self.create_request("/api/v1/ob/stop", "POST",
-                                  data={
-                                      "scope": {"type": level, "target": target}, 
-                                      "force": force, "terminate": terminate,   
-                                      "forcePassDag": {
-                                          "id": force_pass_dag
-                                      }
-                                    })
+                                data={
+                                    "scope": {"type": level, "target": target},
+                                    "force": force,
+                                    "terminate": terminate,
+                                    "forcePassDag": {"id": force_pass_dag}
+                                })
         return self.handle_task_ret_request(req)
 
-    def stop_sync(self, level: str, target: list, force=False, terminate=False, force_pass_dag=None) -> DagDetailDTO:
+    def stop_sync(self,
+                  level: str, target: list,
+                  force=False,
+                  terminate=False,
+                  force_pass_dag=None) -> DagDetailDTO:
         dag = self.stop(level, target, force, terminate, force_pass_dag)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -262,7 +308,10 @@ class ClientV1(Client):
                                     })
         return self.handle_task_ret_request(req)
 
-    def scale_out_sync(self, ip: str, port: str, zone: str, ob_configs: dict) -> DagDetailDTO:
+    def scale_out_sync(self,
+                       ip: str, port: str,
+                       zone: str,
+                       ob_configs: dict) -> DagDetailDTO:
         dag = self.scale_out(ip, port, zone, ob_configs)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -273,9 +322,16 @@ class ClientV1(Client):
         req.headers = headers
         return self._handle_ret_request(req, UpgradePkgInfo)
 
-    def upgrade_agent_check(self, version: str, release: str, upgrade_dir=None):
+    def upgrade_agent_check(self,
+                            version: str,
+                            release: str,
+                            upgrade_dir=None):
         req = self.create_request("/api/v1/agent/upgrade/check", "POST",
-                                  data={"version": version, "release": release, "upgradeDir": upgrade_dir})
+                                  data={
+                                      "version": version,
+                                      "release": release,
+                                      "upgradeDir": upgrade_dir
+                                    })
         return self.handle_task_ret_request(req)
 
     def upgrade_agent_check_sync(self, version: str, release: str, upgrade_dir=None):
@@ -284,7 +340,11 @@ class ClientV1(Client):
 
     def upgrade_agent(self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
         req = self.create_request("/api/v1/agent/upgrade", "POST",
-                                  data={"version": version, "release": release, "upgradeDir": upgrade_dir})
+                                  data={
+                                      "version": version,
+                                      "release": release,
+                                      "upgradeDir": upgrade_dir
+                                    })
         return self.handle_task_ret_request(req)
 
     def upgrade_agent_sync(self, version: str, release: str, upgrade_dir=None):
@@ -305,14 +365,22 @@ class ClientV1(Client):
             OBShellHandleError: error message
         """
         req = self.create_request("/api/v1/ob/upgrade/check", "POST",
-                                  data={"version": version, "release": release, "upgradeDir": upgrade_dir})
+                                  data={
+                                      "version": version,
+                                      "release": release,
+                                      "upgradeDir": upgrade_dir
+                                    })
         return self.handle_task_ret_request(req)
 
     def upgrade_ob_check_sync(self, version: str, release: str, upgrade_dir=None):
         dag = self.upgrade_ob_check(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def upgrade_ob(self, version: str, release: str, mode: str, upgrade_dir=None) -> DagDetailDTO:
+    def upgrade_ob(self,
+                   version: str,
+                   release: str,
+                   mode: str,
+                   upgrade_dir=None) -> DagDetailDTO:
         """ upgrade ob
         Args:
             version (str): The version of the observer to be upgraded to
@@ -327,10 +395,19 @@ class ClientV1(Client):
             OBShellHandleError: error message
         """
         req = self.create_request("/api/v1/ob/upgrade", "POST",
-                                data={"version": version, "release": release, "mode": mode, "upgradeDir": upgrade_dir})
+                                  data={
+                                      "version": version,
+                                      "release": release,
+                                      "mode": mode,
+                                      "upgradeDir": upgrade_dir
+                                    })
         return self.handle_task_ret_request(req)
 
-    def upgrade_ob_sync(self, version: str, release: str, mode: str, upgrade_dir=None) -> DagDetailDTO:
+    def upgrade_ob_sync(self,
+                        version: str,
+                        release: str,
+                        mode: str,
+                        upgrade_dir=None) -> DagDetailDTO:
         """ upgrade ob and wait for the task to succeed
         Args:
             version (str): The version of the observer to be upgraded to
@@ -349,11 +426,13 @@ class ClientV1(Client):
         return self.wait_dag_succeed(dag.generic_id)
 
     def get_dag(self, generic_id: str, show_detail=True) -> DagDetailDTO:
-        req = self.create_request(f"/api/v1/task/dag/{generic_id}", "GET", data={"showDetail": show_detail})
+        req = self.create_request(f"/api/v1/task/dag/{generic_id}", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_request(req, DagDetailDTO)
 
     def operate_dag(self, generic_id: str, operator: str) -> DagDetailDTO:
-        req = self.create_request(f"/api/v1/task/dag/{generic_id}", "POST", data={"operator": operator})
+        req = self.create_request(f"/api/v1/task/dag/{generic_id}", "POST",
+                                  data={"operator": operator})
         return self._handle_ret_request(req)
 
     def operate_dag_sync(self, generic_id: str, operator: str):
@@ -375,35 +454,43 @@ class ClientV1(Client):
         raise TaskExecuteFailedError(f"Failed to {operator} task {generic_id}", dag)
 
     def get_node(self, generic_id: str, show_detail=True) -> NodeDetailDTO:
-        req = self.create_request(f"/api/v1/task/node/{generic_id}", "GET", data={"showDetail": show_detail})
+        req = self.create_request(f"/api/v1/task/node/{generic_id}", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_request(req, NodeDetailDTO)
 
     def get_sub_task(self, generic_id: str, show_detail=True) -> TaskDetailDTO:
-        req = self.create_request(f"/api/v1/task/subtask/{generic_id}", "GET", data={"showDetail": show_detail})
+        req = self.create_request(f"/api/v1/task/subtask/{generic_id}", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_request(req, TaskDetailDTO)
 
     def get_agent_last_maintenance_dag(self, show_detail=True) -> DagDetailDTO:
-        req = self.create_request("/api/v1/task/dag/maintain/agent", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/maintain/agent", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_request(req, DagDetailDTO)
 
     def get_agent_unfinished_dag(self, show_detail=True):
-        req = self.create_request("/api/v1/task/dag/agent/unfinish", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/agent/unfinish", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
     def get_all_agent_last_maintenance_dag(self, show_detail=True):
-        req = self.create_request("/api/v1/task/dag/maintain/agents", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/maintain/agents", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
     def get_cluster_unfinished_dag(self, show_detail=True):
-        req = self.create_request("/api/v1/task/dag/ob/unfinish", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/ob/unfinish", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
     def get_ob_last_maintenance_dag(self, show_detail=True):
-        req = self.create_request("/api/v1/task/dag/maintain/ob", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/maintain/ob", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
     def get_unfinished_dags(self, show_detail=True):
-        req = self.create_request("/api/v1/task/dag/unfinish", "GET", data={"showDetail": show_detail})
+        req = self.create_request("/api/v1/task/dag/unfinish", "GET",
+                                  data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, DagDetailDTO)
 
     def get_ob_info(self):
@@ -442,7 +529,9 @@ class ClientV1(Client):
                     raise e
 
     # Aggregation function
-    def aggregate_upgrade_agent(self, pkg: str, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+    def aggregate_upgrade_agent(self, pkg: str,
+                                version: str, release: str,
+                                upgrade_dir=None) -> DagDetailDTO:
         """ aggregate upgrade agent
         Args:
             pkg (str): The path of the upgrade package
@@ -465,7 +554,8 @@ class ClientV1(Client):
         agent = get_info(self.server)
         dag = self.get_agent_last_maintenance_dag()
         need_remove = False
-        if agent.identity == Agentidentity.FOLLOWER  or agent.identity == Agentidentity.MASTER:
+        if (agent.identity == Agentidentity.FOLLOWER or
+            agent.identity == Agentidentity.MASTER):
             need_remove = True
         if dag.name == "Initialize cluster":
             if not dag.is_finished():

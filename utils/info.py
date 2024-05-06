@@ -24,7 +24,8 @@ def get_info(server: str) -> AgentInfo:
     url = f"http://{server}/api/v1/info"
     resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get version from {server}, status code: {resp.status_code}")
+        raise Exception(f"Failed to get version from {server}, "
+                         f"status code: {resp.status_code}")
     data = resp.json().get("data", {})
     if not data:
         raise Exception(f"Failed to get version from {server}, no data")
@@ -40,7 +41,8 @@ def get_public_key(server: str) -> str:
     url = f"http://{server}/api/v1/secret"
     resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get public key from {server}, status code: {resp.status_code}")
+        raise Exception(f"Failed to get public key from {server}, "
+                        f"status code: {resp.status_code}")
 
     data = resp.json().get("data", {})
     if not data:
