@@ -169,7 +169,7 @@ class ClientV1(Client):
         """Joins a new agent to the uninitialized cluster.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the join task to succeed or
+        You can use wait_dag_succeed to wait for the join task to succeed or
         use join_sync to join synchronously instead.
 
         Args:
@@ -215,7 +215,7 @@ class ClientV1(Client):
         """Removes an agent from the uninitialized cluster.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the remove task to succeed or
+        You can use wait_dag_succeed to wait for the remove task to succeed or
         use remove_sync to remove synchronously instead.
 
         Args:
@@ -254,12 +254,13 @@ class ClientV1(Client):
         """Sets the configuration of the observer.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the configure observer task to succeed or
+        You can use wait_dag_succeed to wait for the configure observer task to succeed or
         use config_observer_sync to configure synchronously instead.
 
         Args:
             configs (dict): The configuration of the observer.
             level (str): The level of target.
+
                 - 'SERVER'. target is the list of 'ip:port'.
                 - 'ZONE'. target is the list of zone name.
                 - 'GLOBAL'. target is [].
@@ -308,7 +309,7 @@ class ClientV1(Client):
         """Sets the configuration of the obcluster.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the configure obcluster task to succeed or
+        You can use wait_dag_succeed to wait for the configure obcluster task to succeed or
         use config_obcluster_sync to configure synchronously instead.
 
         Args:
@@ -354,7 +355,7 @@ class ClientV1(Client):
         """Initializes the cluster.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the init task to succeed or
+        You can use wait_dag_succeed to wait for the init task to succeed or
         use init_sync to initialize synchronously instead.
 
         Returns:
@@ -384,7 +385,7 @@ class ClientV1(Client):
         """Starts specified observer.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the start observer task to succeed or
+        You can use wait_dag_succeed to wait for the start observer task to succeed or
         use start_sync to start synchronously instead.
 
         Args:
@@ -435,7 +436,7 @@ class ClientV1(Client):
         """Stops specified observer
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the stop observer task to succeed or
+        You can use wait_dag_succeed to wait for the stop observer task to succeed or
         use stop_sync to stop synchronously instead.
 
         Args:
@@ -494,7 +495,7 @@ class ClientV1(Client):
         """Scales out the cluster.
 
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the scale_out task to succeed or
+        You can use wait_dag_succeed to wait for the scale_out task to succeed or
         use scale_out_sync to scale out synchronously instead.
 
         Args:
@@ -562,7 +563,7 @@ class ClientV1(Client):
         Checks if the upgrade conditions are met, such as target package has been
         uploaded, the target version and release are valid.
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the check task to succeed or
+        You can use wait_dag_succeed to wait for the check task to succeed or
         use upgrade_agent_check_sync to check synchronously instead.
 
         Args:
@@ -605,7 +606,7 @@ class ClientV1(Client):
 
         Upgrades the agent to the target version and release.
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the upgrade task to succeed or
+        You can use wait_dag_succeed to wait for the upgrade task to succeed or
         use upgrade_agent_sync to upgrade synchronously instead.
 
         Args:
@@ -649,7 +650,7 @@ class ClientV1(Client):
         Checks if the upgrade conditions are met, such as target package has been
         uploaded, the target version and release are valid.
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the check task to succeed or
+        You can use wait_dag_succeed to wait for the check task to succeed or
         use upgrade_ob_check_sync to check synchronously instead.
 
         Args:
@@ -696,7 +697,7 @@ class ClientV1(Client):
 
         Upgrades the observer to the target version and release.
         Return as soon as request successfully.
-        You use wait_dag_succeed to wait for the upgrade task to succeed or
+        You can use wait_dag_succeed to wait for the upgrade task to succeed or
         use upgrade_ob_sync to upgrade synchronously instead.
 
         Args:
