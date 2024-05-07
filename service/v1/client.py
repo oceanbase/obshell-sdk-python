@@ -53,13 +53,38 @@ class UsageError(Exception):
     pass
 
 class ClientV1(Client):
+    """Client V1 for OBShell.
 
+    The ClientV1 class provides a set of methods to interact with OBShell server:
+        - Methods for OpenAPI: 
+            Some of OpenAPI provided by OBShell will create a task.
+            For these APIs, ClientV1 provides tow method for each API:
+                - One method will return as soon as the request is successfully
+                  and the task is created. such as join.
+                  For these methods, you can use wait_dag_succeed to wait for
+                  the task to succeed.
+                - The other method will wait for the task to succeed. such as join_sync.
+        - Aggregation methods:
+            Methods that aggregate multiple requests to achieve a specific goal.
+            such as clear_uninitialized_agent and aggregate_upgrade_agent.
+        - Other methods:
+            such as wait_dag_succeed.
+    """
     DEFAULT_REQUEST_TIMEOUT = 600
 
     def __init__(self, host: str,
                  port: int = 2886,
                  auth=PasswordAuth(""),
                  timeout=DEFAULT_REQUEST_TIMEOUT):
+        """Initialize a new ClientV1 instance.
+        
+        Args:
+            host (str): The hostname or IP address of the server to connect to.
+            port (int, optional): The port number of the server. Defaults to 2886.
+            auth (Auth, optional): 
+                The authentication method. Defaults to PasswordAuth("").
+            timeout (int, optional): The timeout of the request. Defaults to 600.
+        """
         super().__init__(host, port, auth=auth, timeout=timeout)
 
     def _set_password_candidate_auth(self, password: str):
@@ -137,6 +162,23 @@ class ClientV1(Client):
 
     # Function for OpenAPI
     def join(self, ip: str, port: int, zone: str) -> DagDetailDTO:
+        """Joins a new agent to the uninitialized cluster.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the join task to succeed or
+        use join_sync to join synchronously instead.
+        
+        Args:
+            ip (str): The ip of the agent to be joined.
+            port (int): The port of the agent to be joined.
+            zone (str): The zone of the agent to be joined.
+            
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
         try:
             c = ClientV1(ip, port)
             auth = self.get_auth()
@@ -152,15 +194,51 @@ class ClientV1(Client):
         return dag
 
     def join_sync(self, ip: str, port: int, zone: str) -> DagDetailDTO:
+        """Joins a new agent to the uninitialized cluster synchronously.
+
+        Seealso join.
+        Waits for the join task to succeed.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.join(ip, port, zone)
         return self.wait_dag_succeed(dag.generic_id)
 
     def remove(self, ip: str, port: int) -> DagDetailDTO:
+        """Removes an agent from the uninitialized cluster.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the remove task to succeed or
+        use remove_sync to remove synchronously instead.
+        
+        Args:
+            ip (str): The ip of the agent to be removed.
+            port (int): The port of the agent to be removed.
+            
+        Returns:
+            Task detail as DagDetailDTO.
+            
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/agent/remove", "POST",
                                   data={"ip": ip, "port": port})
         return self.handle_task_ret_request(req)
 
     def remove_sync(self, ip: str, port: int) -> DagDetailDTO:
+        """Removes an agent from the uninitialized cluster synchronously.
+        
+        Seealso remove.
+        Waits for the remove task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.remove(ip, port)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -169,6 +247,27 @@ class ClientV1(Client):
                         level: str,
                         target: list,
                         restart=True) -> DagDetailDTO:
+        """Sets the configuration of the observer.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the configure observer task to succeed or
+        use config_observer_sync to configure synchronously instead.
+        
+        Args:
+            configs (dict): The configuration of the observer.
+            level (str): The level of target.
+                - 'SERVER'. target is the list of 'ip:port'.
+                - 'ZONE'. target is the list of zone name.
+                - 'GLOBAL'. target is [].
+            target (list): The target OBShells to be configured. seealso level.
+            restart (bool, optional): Whether to restart the observer after configuration.
+        
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/observer/config", "POST",
                                   data={
                                       "observerConfig": configs,
@@ -185,6 +284,16 @@ class ClientV1(Client):
                              level: str,
                              target: list,
                              restart=True) -> DagDetailDTO:
+        """Sets the configuration of the observer synchronously.
+        
+        Seealso config_observer.
+        Waits for the configure observer task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.config_observer(configs, level, target, restart)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -192,6 +301,23 @@ class ClientV1(Client):
                          cluster_name: str,
                          cluster_id: int,
                          root_pwd: str) -> DagDetailDTO:
+        """Sets the configuration of the obcluster.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the configure obcluster task to succeed or
+        use config_obcluster_sync to configure synchronously instead.
+        
+        Args:
+            cluster_name (str): The name of the obcluster.
+            cluster_id (int): The id of the obcluster.
+            root_pwd (str): The password of root@sys user.
+            
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/obcluster/config", "POST",
                                   data={
                                       "clusterName": cluster_name,
@@ -206,36 +332,71 @@ class ClientV1(Client):
                               cluster_name: str,
                               cluster_id: int,
                               root_pwd: str) -> DagDetailDTO:
+        """Sets the configuration of the obcluster synchronously.
+        
+        Seealso config_obcluster.
+        Waits for the configure obcluster task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.config_obcluster(cluster_name, cluster_id, root_pwd)
         self._set_password_candidate_auth(root_pwd)
         return self.wait_dag_succeed(dag.generic_id)
 
     def init(self) -> DagDetailDTO:
+        """Initializes the cluster.
+
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the init task to succeed or
+        use init_sync to initialize synchronously instead.
+        
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/ob/init", "POST")
         return self.handle_task_ret_request(req)
 
     def init_sync(self) -> DagDetailDTO:
+        """Initializes the cluster synchronously.
+        
+        Seealso init.
+        Waits for the init task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.init()
         return self.wait_dag_succeed(dag.generic_id)
 
     def start(self, level: str, target: list, force_pass_dag=None) -> DagDetailDTO:
-        """ start specified observer
+        """Starts specified observer.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the start observer task to succeed or
+        use start_sync to start synchronously instead.
+        
         Args:
-             level (str): The level of target
-                - 'SERVER'. target is the list of ip:port
-                - 'ZONE'. target is the list of zone name
-                - 'GLOBAL'. target is []
-
-            target (list): The targets of the observer to stop. seealso level.
-
+            level (str): The level of target.
+                - 'SERVER'. target is the list of ip:port.
+                - 'ZONE'. target is the list of zone name.
+                - 'GLOBAL'. target is [].
+            target (list): The targets of the observer to be started. seealso level.
             force_pass_dag (list, optional): 
                 The dags that need to be forced to pass. Defaults to None.
-        
+                
         Returns:
-            DagDetailDTO: task detail
-            
+            Task detail as DagDetailDTO.
+
         Raises:
-            OBShellHandleError: error message
+            OBShellHandleError: error message return by OBShell server.
         """
         if force_pass_dag is None:
             force_pass_dag = []
@@ -247,6 +408,16 @@ class ClientV1(Client):
         return self.handle_task_ret_request(req)
 
     def start_sync(self, level: str, target: list, force_pass_dag=None) -> DagDetailDTO:
+        """Starts specified observer synchronously.
+        
+        Seealso start.
+        Waits for the start observer task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.start(level, target, force_pass_dag)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -256,31 +427,32 @@ class ClientV1(Client):
              force=False,
              terminate=False,
              force_pass_dag=None) -> DagDetailDTO:
-        """ stop specified observer
+        """Stops specified observer
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the stop observer task to succeed or
+        use stop_sync to stop synchronously instead.
+
         Args:
-            level (str): The level of target
-                - 'SERVER'. target is the list of ip:port
-                - 'ZONE'. target is the list of zone name
-                - 'GLOBAL'. target is []
-                
-            target (list): The targets of the observer to stop. seealso level.
-                
+            level (str): The level of target.
+                - 'SERVER'. target is the list of ip:port.
+                - 'ZONE'. target is the list of zone name.
+                - 'GLOBAL'. target is [].
+            target (list): The targets of the observer to be stopped. seealso level.
             force (bool, optional): 
                 Whether to forcely stop. Defaults to False.
-            
             terminate (bool, optional): 
                 Whether to execute "MINOR FREEZE" before stop the observer. 
                 Defaults to False.
-
             force_pass_dag (list, optional): 
                 The dags that need to be forced to pass. 
                 Defaults to None.
-        
+
         Returns:
-            DagDetailDTO: task detail
-        
+            Task detail as DagDetailDTO.
+
         Raises:
-            OBShellHandleError: error message
+            OBShellHandleError: error message return by OBShell server.
         """
         if force_pass_dag is None:
             force_pass_dag = []
@@ -299,10 +471,38 @@ class ClientV1(Client):
                   force=False,
                   terminate=False,
                   force_pass_dag=None) -> DagDetailDTO:
+        """Stops specified observer synchronously.
+        
+        Seealso stop.
+        Waits for the stop observer task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.stop(level, target, force, terminate, force_pass_dag)
         return self.wait_dag_succeed(dag.generic_id)
 
     def scale_out(self, ip: str, port: int, zone: str, ob_configs: dict) -> DagDetailDTO:
+        """Scales out the cluster.
+        
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the scale_out task to succeed or
+        use scale_out_sync to scale out synchronously instead.
+        
+        Args:
+            ip (str): The ip of the agent to added.
+            port (int): The port of the agent to added.
+            zone (str): The zone of the agent to be added.
+            ob_configs (dict): The configuration of the observer.
+        
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/ob/scale_out", "POST",
                                   data={
                                       "agentInfo": {"ip": ip, "port": port},
@@ -316,10 +516,33 @@ class ClientV1(Client):
                        port: str,
                        zone: str,
                        ob_configs: dict) -> DagDetailDTO:
+        """Scales out the cluster synchronously.
+        
+        Seealso scale_out.
+        Waits for the scale_out task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.scale_out(ip, port, zone, ob_configs)
         return self.wait_dag_succeed(dag.generic_id)
 
     def upload_pkg(self, pkg_path: str) -> UpgradePkgInfo:
+        """upload package to obcluster
+        
+        uploads the neccssary packages before upgrading OBShell or observer.
+        
+        Args:
+            pkg_path (str): The absolute path of the package.
+        
+        Returns:
+            UpgradePkgInfo: package information.
+            
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/upgrade/package", "POST")
         data, headers = self._parse_pkg(pkg_path)
         req.data = data
@@ -328,6 +551,25 @@ class ClientV1(Client):
 
     def upgrade_agent_check(
         self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+        """Checks before upgrading agent
+        
+        Checks if the upgrade conditions are met, such as target package has been
+        uploaded, the target version and release are valid.
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the check task to succeed or 
+        use upgrade_agent_check_sync to check synchronously instead.
+        
+        Args:
+            version (str): The version of the agent to be upgraded to.
+            release (str): The release of the agent to be upgraded to.
+            upgrade_dir (str, optional): the temp dir to used by the task.
+            
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/agent/upgrade/check", "POST",
                                   data={
                                       "version": version,
@@ -338,10 +580,38 @@ class ClientV1(Client):
 
     def upgrade_agent_check_sync(
         self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+        """Checks before upgrading agent synchronously
+        
+        Seealso upgrade_agent_check.
+        Waits for the check task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.upgrade_agent_check(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
     def upgrade_agent(self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+        """Upgrades agent
+        
+        Upgrades the agent to the target version and release.
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the upgrade task to succeed or
+        use upgrade_agent_sync to upgrade synchronously instead.
+        
+        Args:
+            version (str): The version of the agent to be upgraded to.
+            release (str): The release of the agent to be upgraded to.
+            upgrade_dir (str, optional): the temp dir to used by the upgrade task.
+        
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request("/api/v1/agent/upgrade", "POST",
                                   data={
                                       "version": version,
@@ -352,22 +622,39 @@ class ClientV1(Client):
 
     def upgrade_agent_sync(
         self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+        """Upgrades agent synchronously.
+        
+        Seealso upgrade_agent.
+        Waits for the upgrade task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.upgrade_agent(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
     def upgrade_ob_check(
         self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
-        """ check before upgrading ob
+        """Checks before upgrading ob.
+
+        Checks if the upgrade conditions are met, such as target package has been
+        uploaded, the target version and release are valid.
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the check task to succeed or
+        use upgrade_ob_check_sync to check synchronously instead.
+
         Args:
-            version (str): The version of the observer to be upgraded to
-            release (str): The release of the observer to be upgraded to
-            upgrade_dir (str, optional): the temp dir to store the upgrade package
+            version (str): The version of the observer to be upgraded to.
+            release (str): The release of the observer to be upgraded to.
+            upgrade_dir (str, optional): the temp dir used by the task.
         
         Returns:
-            DagDetailDTO: task detail
+            Task detail as DagDetailDTO.
         
-        Raises:
-            OBShellHandleError: error message
+        Raise:
+            OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request("/api/v1/ob/upgrade/check", "POST",
                                   data={
@@ -379,6 +666,17 @@ class ClientV1(Client):
 
     def upgrade_ob_check_sync(
         self, version: str, release: str, upgrade_dir=None) -> DagDetailDTO:
+        """Checks before upgrading ob synchronously.
+        
+        Seealso upgrade_ob_check.
+        
+        Waits for the check task to succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         dag = self.upgrade_ob_check(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
@@ -387,18 +685,26 @@ class ClientV1(Client):
                    release: str,
                    mode: str,
                    upgrade_dir=None) -> DagDetailDTO:
-        """ upgrade ob
-        Args:
-            version (str): The version of the observer to be upgraded to
-            release (str): The release of the observer to be upgraded to
-            mode (str): uUpgrade mode("ROLLING" or "STOPSERVICE")
-            upgrade_dir (str, optional): the temp dir to store the upgrade package
+        """Upgrades observer
         
+        Upgrades the observer to the target version and release.
+        Return as soon as request successfully.
+        You use wait_dag_succeed to wait for the upgrade task to succeed or
+        use upgrade_ob_sync to upgrade synchronously instead.
+        
+        Args:
+            version (str): The version of the observer to be upgraded to.
+            release (str): The release of the observer to be upgraded to.
+            mode (str): Upgrade mode.
+                - 'ROLLING'. Rolling upgrade.
+                - 'STOPSERVICE'. Stop service upgrade.
+            upgrade_dir (str, optional): the temp dir to used by the upgrade task.
+            
         Returns:
-            DagDetailDTO: task detail
+            Task detail as DagDetailDTO.
         
         Raises:
-            OBShellHandleError: error message
+            OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request("/api/v1/ob/upgrade", "POST",
                                   data={
@@ -414,34 +720,74 @@ class ClientV1(Client):
                         release: str,
                         mode: str,
                         upgrade_dir=None) -> DagDetailDTO:
-        """ upgrade ob and wait for the task to succeed
-        Args:
-            version (str): The version of the observer to be upgraded to
-            release (str): The release of the observer to be upgraded to
-            mode (str): uUpgrade mode("ROLLING" or "STOPSERVICE")
-            upgrade_dir (str, optional): the temp dir to store the upgrade package
+        """Upgrades observer synchronously.
         
-        Returns:
-            DagDetailDTO: task detail
+        Seealso upgrade_ob.
+        Waits for the upgrade task to succeed.
         
         Raises:
-            OBShellHandleError: error message
-            TaskExecuteFailedError: task failed, with the failed task detail and logs
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
         """
         dag = self.upgrade_ob(version, release, mode, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
 
     def get_dag(self, generic_id: str, show_detail=True) -> DagDetailDTO:
+        """Gets the detail of a task(DAG).
+        
+        Get the detail of a task(DAG) by generic_id.
+        
+        Args:
+            generic_id (str): The generic_id of the task.
+            show_detail (bool, optional): Whether to show the detail of the task
+                such as sub nodes. Defaults to True.
+        
+        Returns:
+            Task detail as DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request(f"/api/v1/task/dag/{generic_id}", "GET",
                                   data={"showDetail": show_detail})
         return self._handle_ret_request(req, DagDetailDTO)
 
     def operate_dag(self, generic_id: str, operator: str) -> DagDetailDTO:
+        """Operates a task(DAG).
+        
+        Operate a task(DAG) by generic_id.
+        Return as soon as request successfully.
+        
+        Args:
+            generic_id (str): The generic_id of the task.
+            operator (str): The operator to operate the task.
+                - 'ROLLBACK'. Rollback a failed task.
+                - 'CANCEL'. Cancel a runnig task.
+                - 'RETRY'. Retry a failed task.
+                - 'PASS'. Pass a failed task.
+    
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request(f"/api/v1/task/dag/{generic_id}", "POST",
                                   data={"operator": operator})
         return self._handle_ret_request(req)
 
     def operate_dag_sync(self, generic_id: str, operator: str):
+        """Operates a task(DAG) synchronously.
+        
+        Seealso operate_dag.
+        Waits for the operation succeed.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the operation failed, 
+                include the failed task detail and logs.
+        """
         self.operate_dag(generic_id, operator)
         dag = None
         try:
@@ -460,13 +806,36 @@ class ClientV1(Client):
         raise TaskExecuteFailedError(f"Failed to {operator} task {generic_id}", dag)
 
     def get_node(self, generic_id: str, show_detail=True) -> NodeDetailDTO:
+        """Gets the detail of a task node.
+        
+        Gets the detail of a task node by generic_id.
+        Node is the item of a task(DAG).
+        
+        Args:
+            generic_id (str): The generic_id of the node.
+            show_detail (bool, optional): Whether to show the detail of the node
+                such as sub tasks. Defaults to True.
+        
+        Returns:
+            Node detail as NodeDetailDTO.
+        
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
         req = self.create_request(f"/api/v1/task/node/{generic_id}", "GET",
                                   data={"showDetail": show_detail})
         return self._handle_ret_request(req, NodeDetailDTO)
 
-    def get_sub_task(self, generic_id: str, show_detail=True) -> TaskDetailDTO:
-        req = self.create_request(f"/api/v1/task/sub_task/{generic_id}", "GET",
-                                  data={"showDetail": show_detail})
+    def get_sub_task(self, generic_id: str) -> TaskDetailDTO:
+        """Gets the detail of a sub task.
+        
+        Gets the detail of a sub task by generic_id.
+        Sub task is the item of a task node.
+        
+        Args:
+            generic_id (str): The generic_id of the sub task.
+        """
+        req = self.create_request(f"/api/v1/task/sub_task/{generic_id}", "GET")
         return self._handle_ret_request(req, TaskDetailDTO)
 
     def get_agent_last_maintenance_dag(self, show_detail=True) -> DagDetailDTO:
@@ -512,6 +881,23 @@ class ClientV1(Client):
         return self._handle_ret_request(req, AgentStatusWithZone)
 
     def wait_dag_succeed(self, generic_id: str, retry_time=60) -> DagDetailDTO:
+        """Wait for a task(DAG) to succeed.
+        
+        Waits for a task(DAG) to succeed.
+        
+        Args:
+            generic_id (str): The generic_id of the task.
+            retry_time (int, optional): The retry times when connection error occurs.
+            
+        Returns:
+            Task detail as DagDetailDTO.
+        
+        Raises:
+            requests.exceptions.ConnectionError: Connection error.
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed, 
+                include the failed task detail and logs.
+        """
         while True:
             try:
                 dag = self.get_dag(generic_id)
@@ -540,25 +926,38 @@ class ClientV1(Client):
                                 version: str,
                                 release: str,
                                 upgrade_dir=None) -> DagDetailDTO:
-        """ aggregate upgrade agent
+        """Upgrade agent aggregately
+        
+        Aggregately upgrade agent, including upload package, check before upgrade,
+        and upgrade agent.
+        Waits until upgrade successfully.
+        
         Args:
-            pkg (str): The path of the upgrade package
-            version (str): The version of the agent to be upgraded to
-            release (str): The release of the agent to be upgraded to
-            upgrade_dir (str, optional): the temp dir to store the upgrade package
+            pkg (str): The path of the upgrade package.
+            version (str): The version of the agent to be upgraded to.
+            release (str): The release of the agent to be upgraded to.
+            upgrade_dir (str, optional): the temp dir used by task.
         
         Returns:
-            DagDetailDTO: task detail
+            Task detail as DagDetailDTO.
         
         Raises:
-            OBShellHandleError: error message
-            TaskExecuteFailedError: task failed, with the failed task detail and logs
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
         """
         self.upload_pkg(pkg)
-        self.upgrade_agent_check(version, release, upgrade_dir)
-        return self.upgrade_agent(version, release, upgrade_dir)
+        self.upgrade_agent_check_sync(version, release, upgrade_dir)
+        return self.upgrade_agent_sync(version, release, upgrade_dir)
 
     def clear_uninitialized_agent(self):
+        """Clears the agent in a uninitialized cluster.
+        
+        Clear a "MASTER" or "FOLLOWER" agent to a "SINGLE".
+        if there is a failed "Initialize Cluster" task, rollback it.
+        if the agent is "MASTER", all of the agents will be removed.
+        
+        """
         agent = get_info(self.server)
         dag = self.get_agent_last_maintenance_dag()
         need_remove = False
