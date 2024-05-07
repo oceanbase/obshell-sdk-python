@@ -62,10 +62,10 @@ class ServerConfig:
         return ServerConfig(data)
 
     def __str__(self) -> str:
-        return ("{"+f"svr_ip: {self.svr_ip}, svr_port: {self.svr_port},"
+        return ("{" + f"svr_ip: {self.svr_ip}, svr_port: {self.svr_port},"
                 f"sql_port: {self.sql_port}, agent_port: {self.agent_port}, "
                 f"with_rootserver: {self.with_rootserver}, status: {self.status}, "
-                f"build_version: {self.build_version}"+"}")
+                f"build_version: {self.build_version}" + "}")
 
 
 class ClusterConfig:
