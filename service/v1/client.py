@@ -263,7 +263,8 @@ class ClientV1(Client):
 
                 - 'SERVER'. target is the list of 'ip:port'.
                 - 'ZONE'. target is the list of zone name.
-                - 'GLOBAL'. target is [].
+                - 'GLOBAL'. target is empty.
+
             target (list): The target OBShells to be configured. seealso level.
             restart (bool, optional): Whether to restart the observer after configuration.
 
@@ -390,9 +391,11 @@ class ClientV1(Client):
 
         Args:
             level (str): The level of target.
+
                 - 'SERVER'. target is the list of ip:port.
                 - 'ZONE'. target is the list of zone name.
-                - 'GLOBAL'. target is [].
+                - 'GLOBAL'. target is empty.
+
             target (list): The targets of the observer to be started. seealso level.
             force_pass_dag (list, optional):
                 The dags that need to be forced to pass. Defaults to None.
@@ -441,9 +444,11 @@ class ClientV1(Client):
 
         Args:
             level (str): The level of target.
+
                 - 'SERVER'. target is the list of ip:port.
                 - 'ZONE'. target is the list of zone name.
-                - 'GLOBAL'. target is [].
+                - 'GLOBAL'. target is empty.
+
             target (list): The targets of the observer to be stopped. seealso level.
             force (bool, optional):
                 Whether to forcely stop. Defaults to False.
@@ -704,8 +709,10 @@ class ClientV1(Client):
             version (str): The version of the observer to be upgraded to.
             release (str): The release of the observer to be upgraded to.
             mode (str): Upgrade mode.
+
                 - 'ROLLING'. Rolling upgrade.
                 - 'STOPSERVICE'. Stop service upgrade.
+
             upgrade_dir (str, optional): the temp dir to used by the upgrade task.
 
         Returns:
@@ -744,7 +751,7 @@ class ClientV1(Client):
     def get_dag(self, generic_id: str, show_detail=True) -> task.DagDetailDTO:
         """Gets the detail of a task(DAG).
 
-        Get the detail of a task(DAG) by generic_id.
+        Gets the detail of a task(DAG) by generic_id.
 
         Args:
             generic_id (str): The generic_id of the task.
@@ -764,12 +771,13 @@ class ClientV1(Client):
     def operate_dag(self, generic_id: str, operator: str) -> task.DagDetailDTO:
         """Operates a task(DAG).
 
-        Operate a task(DAG) by generic_id.
+        Operates a task(DAG) by generic_id.
         Return as soon as request successfully.
 
         Args:
             generic_id (str): The generic_id of the task.
             operator (str): The operator to operate the task.
+
                 - 'ROLLBACK'. Rollback a failed task.
                 - 'CANCEL'. Cancel a runnig task.
                 - 'RETRY'. Retry a failed task.
@@ -890,7 +898,7 @@ class ClientV1(Client):
         return self._handle_ret_request(req, info.AgentStatusWithZone)
 
     def wait_dag_succeed(self, generic_id: str, retry_time=60) -> task.DagDetailDTO:
-        """Wait for a task(DAG) to succeed.
+        """Waits for a task(DAG) to succeed.
 
         Waits for a task(DAG) to succeed.
 
@@ -935,9 +943,9 @@ class ClientV1(Client):
                                 version: str,
                                 release: str,
                                 upgrade_dir=None) -> task.DagDetailDTO:
-        """Upgrade agent aggregately
+        """Upgrades agent aggregately
 
-        Aggregately upgrade agent, including upload package, check before upgrade,
+        Aggregately upgrades agent, including upload package, check before upgrade,
         and upgrade agent.
         Waits until upgrade successfully.
 
@@ -962,7 +970,7 @@ class ClientV1(Client):
     def clear_uninitialized_agent(self):
         """Clears the agent in a uninitialized cluster.
 
-        Clear a "MASTER" or "FOLLOWER" agent to a "SINGLE".
+        Clears a "MASTER" or "FOLLOWER" agent to a "SINGLE".
         if there is a failed "Initialize Cluster" task, rollback it.
         if the agent is "MASTER", all of the agents will be removed.
 
