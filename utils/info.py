@@ -20,12 +20,13 @@ from model.info import AgentInfo
 
 DEFAULT_TIMEOUT = 1000
 
+
 def get_info(server: str) -> AgentInfo:
     url = f"http://{server}/api/v1/info"
     resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
         raise Exception(f"Failed to get version from {server}, "
-                         f"status code: {resp.status_code}")
+                        f"status code: {resp.status_code}")
     data = resp.json().get("data", {})
     if not data:
         raise Exception(f"Failed to get version from {server}, no data")

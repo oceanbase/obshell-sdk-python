@@ -20,7 +20,8 @@ class Version(str):
 
     def __init__(self, bytes_or_buffer, encoding=None, errors=None):
         super(Version, self).__init__()
-        self.__val__ = [(int(_i)) for _i, _ in re.findall('(\d+)([^\._]*)', self.__str__())]
+        self.__val__ = [(int(_i)) for _i, _ in re.findall(
+            '(\d+)([^\._]*)', self.__str__())]
 
     def __eq__(self, value):
         return value is not None and self.__val__ == self.__class__(value).__val__

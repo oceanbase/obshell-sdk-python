@@ -17,4 +17,3 @@ class UpgradePkgInfo:
     @classmethod
     def from_dict(cls, data: dict):
         return UpgradePkgInfo(data)
-        

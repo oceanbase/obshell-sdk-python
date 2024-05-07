@@ -13,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
 import requests
 
 from sdk.request.request import BaseRequest
@@ -22,16 +24,17 @@ from sdk.auth.base import AuthVersion, OBShellVersion
 from utils.info import get_info
 
 
-DECRYPT_ERROR_CODE       = 1     # decrypt error
-INCOMPATIBLE_ERROR_CODE  = 2     # incompatible
-UNAUTHORIZED_ERROR_CODE  = 10008 # unauthorized
+DECRYPT_ERROR_CODE = 1     # decrypt error
+INCOMPATIBLE_ERROR_CODE = 2     # incompatible
+UNAUTHORIZED_ERROR_CODE = 10008  # unauthorized
+
 
 class Client:
 
     def __init__(self,
                  host: str,
-                 port:int = 2886,
-                 auth = PasswordAuth(""),
+                 port: int = 2886,
+                 auth=PasswordAuth(""),
                  timeout=None) -> None:
         """
         Initialize a new Client instance.
@@ -69,8 +72,8 @@ class Client:
         try:
             agent = get_info(f"{self.host}:{self.port}")
             if (agent.version == OBShellVersion.V422 or
-                agent.version == OBShellVersion.V423):
-                self.reset_auth() # to confirm the pk and auth version is right
+                    agent.version == OBShellVersion.V423):
+                self.reset_auth()  # to confirm the pk and auth version is right
                 resp = self._real_execute(req)
                 if resp.status_code == 200:
                     return resp
@@ -100,7 +103,8 @@ class Client:
         auth = self.auth
         agent = get_info(f"{self.host}:{self.port}")
         if not auth.is_support(auth.get_version()):
-            raise Exception(f"Auth version {auth.get_version()} is not supported ")
+            raise Exception(
+                f"Auth version {auth.get_version()} is not supported ")
         if len(agent.supported_auth) == 0:
             if not (auth.get_version() == AuthVersion.V1 and
                     agent.version == OBShellVersion.V422 or
@@ -126,8 +130,9 @@ class Client:
         resp = self._real_execute(req)
         if resp.status_code != 200:
             err = resp.json().get("error")
-            if err is None: # network error
-                raise Exception(f"Request failed with status code {resp.status_code}")
+            if err is None:  # network error
+                raise Exception(
+                    f"Request failed with status code {resp.status_code}")
             errcode = err.get("code")
             if errcode == DECRYPT_ERROR_CODE:
                 self.auth.reset_method()
@@ -140,7 +145,7 @@ class Client:
                         return ret
                     if self.auth.get_version() > AuthVersion.V2:
                         return resp
-                    self.reset_auth() # obshell-sdk-go is wrong
+                    self.reset_auth()  # obshell-sdk-go is wrong
             return self._real_execute(req)
         return resp
 

@@ -1,21 +1,25 @@
 import json
 from enum import Enum
 
+
 class State(Enum):
     PENDING_STR = "PENDING"
-    READY_STR   = "READY"
+    READY_STR = "READY"
     RUNNING_STR = "RUNNING"
-    FAILED_STR  = "FAILED"
+    FAILED_STR = "FAILED"
     SUCCEED_STR = "SUCCEED"
 
+
 class Operator(Enum):
-    RUN_STR      = "RUN"
-    RETRY_STR    = "RETRY"
+    RUN_STR = "RUN"
+    RETRY_STR = "RETRY"
     ROLLBACK_STR = "ROLLBACK"
-    CANCEL_STR   = "CANCEL"
-    PASS_STR     = "PASS"
+    CANCEL_STR = "CANCEL"
+    PASS_STR = "PASS"
+
 
 class TaskStatusDTO:
+
     def __init__(self, data: dict):
         self.state = data["state"]
         self.operator = data["operator"]
@@ -57,6 +61,7 @@ class TaskStatusDTO:
 
 
 class DagDetailDTO(TaskStatusDTO):
+
     def __init__(self, data: json):
         super().__init__(data)
         self.generic_id = data.get("id")
@@ -80,7 +85,9 @@ class DagDetailDTO(TaskStatusDTO):
                 f"start_time: {self.start_time}, end_time: {self.end_time}, "
                 f"nodes: {self.nodes}, additional_data: {self.additional_data}"+"}")
 
+
 class NodeDetailDTO(TaskStatusDTO):
+
     def __init__(self, data: dict):
         super().__init__(data)
         self.generic_id = data.get("id")
@@ -102,7 +109,9 @@ class NodeDetailDTO(TaskStatusDTO):
                 f"sub_tasks: {self.sub_tasks}, "
                 f"additional_data: {self.additional_data}"+"}")
 
+
 class TaskDetailDTO(TaskStatusDTO):
+
     def __init__(self, data: dict):
         super().__init__(data)
         self.generic_id = data.get("id")
@@ -113,7 +122,6 @@ class TaskDetailDTO(TaskStatusDTO):
                               f"{data.get('execute_agent').get('port')}")
         self.task_logs = data.get("task_logs")
         self.additional_data = data.get("additional_data")
-
 
     @classmethod
     def from_dict(cls, data: dict):

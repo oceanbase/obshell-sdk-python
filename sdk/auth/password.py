@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import json
 import time
 import base64
@@ -49,7 +48,6 @@ class PasswordAuth(base.Auth):
         self.method.auth(request)
 
 
-
 class PasswordAuthMethod:
 
     def __init__(self, password: str) -> None:
@@ -60,7 +58,7 @@ class PasswordAuthMethod:
     def reset(self) -> None:
         self.pk = None
 
-    def _init_pk(self, server:str):
+    def _init_pk(self, server: str):
         if self.pk is None:
             self.pk = get_public_key(server)
 
@@ -80,12 +78,13 @@ class PasswordAuthMethodV1(PasswordAuthMethod):
     def auth(self, req: requests.Request) -> None:
         self._check(req.server)
         self._init_pk(req.server)
-        auth_json = json.dumps({'password': self.password, 'ts': int(time.time()) + 5})
+        auth_json = json.dumps(
+            {'password': self.password, 'ts': int(time.time()) + 5})
         key = RSA.import_key(base64.b64decode(self.pk))
         cipher = PKCS1_cipher.new(key)
         req.headers['X-OCS-Auth'] = base64.b64encode(
-                                    cipher.encrypt(bytes(auth_json.encode('utf8')))
-                                    ).decode('utf8')
+            cipher.encrypt(bytes(auth_json.encode('utf8')))
+        ).decode('utf8')
         if not req.original_data:
             req.original_data = req.data
         if req.original_data:
@@ -93,6 +92,7 @@ class PasswordAuthMethodV1(PasswordAuthMethod):
                 req.data = json.dumps(req.original_data)
             elif isinstance(req.original_data, str):
                 req.data = req.original_data
+
 
 class PasswordAuthMethodV2(PasswordAuthMethod):
 
@@ -135,10 +135,11 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
             elif isinstance(req.original_data, bytes):
                 body = req.original_data
             else:
-                raise Exception(f"Unsupported data type: {type(req.original_data)}")
+                raise Exception(
+                    f"Unsupported data type: {type(req.original_data)}")
             req.data = base64.b64encode(
                 cipher.encrypt(pad(bytes(body), AES.block_size))
-                ).decode('utf8')
+            ).decode('utf8')
         return
 
 

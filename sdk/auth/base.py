@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from enum import Enum
 from typing import List
 
@@ -32,6 +31,8 @@ class AuthVersion(Enum):
         if self.__class__ is other.__class__:
             return self.value > other.value
         return NotImplemented
+
+
 class AuthType(Enum):
     PASSWORD = 1
 
@@ -75,7 +76,7 @@ class Auth:
     def get_version(self):
         return self._select_version
 
-    def auto_select_version(self, vers: List[Version]=None) -> bool:
+    def auto_select_version(self, vers: List[Version] = None) -> bool:
         if not vers:
             vers = []
         for ver in vers:
@@ -94,4 +95,3 @@ class Auth:
     def reset_method(self):
         if self.method:
             self.method.reset()
-    
