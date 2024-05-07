@@ -108,7 +108,7 @@ class TaskDetailDTO(TaskStatusDTO):
         self.generic_id = data.get("id")
         self.task_id = data.get("task_id")
         self.name = data.get("name")
-        self.execution_time = data.get("execution_time")
+        self.execute_times = data.get("execute_times")
         self.execute_agent = (f"{data.get('execute_agent').get('ip')}:"
                               f"{data.get('execute_agent').get('port')}")
         self.task_logs = data.get("task_logs")
@@ -123,6 +123,6 @@ class TaskDetailDTO(TaskStatusDTO):
         return ("{"+f"generic_id: {self.generic_id}, task_id: {self.task_id}, "
                 f"name: {self.name}, state: {self.state}, operator: {self.operator}, "
                 f"start_time: {self.start_time}, end_time: {self.end_time}, "
-                f"execution_time: {self.execution_time}, "
+                f"execute_times: {self.execute_times}, "
                 f"execute_agent: {self.execute_agent}, task_logs: {self.task_logs}, "
                 f"additional_data: {self.additional_data}"+"}")
