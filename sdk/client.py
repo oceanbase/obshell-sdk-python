@@ -41,64 +41,107 @@ class Client:
             host (str): The hostname or IP address of the server to connect to.
             port (int, optional): The port number of the server. Defaults to 2886.
         """
-        self.host = host
-        self.port = port
-        self.task_queue = []
-        self.is_syncing = False
-        self.auth = auth
-        self.timeout = timeout
-        self.candidate_auth = None
+        self._host = host
+        self._port = port
+        self._auth = auth
+        self._timeout = timeout
+        self.__candidate_auth = None
 
     @property
     def server(self):
         return f"{self.host}:{self.port}"
 
-    def get_auth(self):
-        return self.auth
+    @property
+    def host(self):
+        return self._host
 
-    def set_candidate_auth(self, auth: Auth):
-        if auth.is_auto_select_version() and auth.type == AuthType.PASSWORD:
-            if self.auth.is_auto_select_version():
-                auth.auto_select_version([self.auth.get_version()])
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    def _execute(self, req: BaseRequest):
+        """Executes a request.
+
+        Args:
+            req (BaseRequest): The request to execute.
+
+        Returns:
+            BaseReponse: The response to the request.
+        """
+        if not self._auth.get_version():
+            self.__confirm_auth_version()
+        elif not self._auth.is_auto_select_version:
+            self.__check_specified_auth()
+
+        resp = self.__real_execute(req)
+        if resp.status_code != 200:
+            err = resp.json().get("error")
+            if err is None:  # network error
+                raise Exception(
+                    f"Request failed with status code {resp.status_code}")
+            errcode = err.get("code")
+            if errcode == DECRYPT_ERROR_CODE:
+                self._auth.reset_method()
+            elif err == INCOMPATIBLE_ERROR_CODE:
+                return resp
             else:
-                auth.set_version(self.auth.get_version())
-        self.candidate_auth = auth
+                if errcode == UNAUTHORIZED_ERROR_CODE:
+                    ret = self.__try_candidate_auth(req)
+                    if ret:
+                        return ret
+                    if self._auth.get_version() > AuthVersion.V2:
+                        return resp
+                    self.__reset_auth()  # obshell-sdk-go is wrong
+            return self.__real_execute(req)
+        return resp
 
-    def try_candidate_auth(self, req):
-        if not self.candidate_auth:
+    def _get_auth(self):
+        return self._auth
+
+    def _set_candidate_auth(self, auth: Auth):
+        if auth.is_auto_select_version and auth.type == AuthType.PASSWORD:
+            if self._auth.is_auto_select_version:
+                auth.auto_select_version([self._auth.get_version()])
+            else:
+                auth.set_version(self._auth.get_version())
+        self.__candidate_auth = auth
+
+    def _set_auth(self, auth):
+        auth.reset_method()
+        self.__set_auth(auth)
+
+    def __set_auth(self, auth):
+        self._auth = auth
+        self.__candidate_auth = None
+
+    def __try_candidate_auth(self, req):
+        if not self.__candidate_auth:
             return False
         try:
             agent = get_info(f"{self.host}:{self.port}")
             if (agent.version == OBShellVersion.V422 or
                     agent.version == OBShellVersion.V423):
-                self.reset_auth()  # to confirm the pk and auth version is right
-                resp = self._real_execute(req)
+                self.__reset_auth()  # to confirm the pk and auth version is right
+                resp = self.__real_execute(req)
                 if resp.status_code == 200:
                     return resp
-            self.adopt_candidate_auth()
-            return self._real_execute(req)
+            self.__adopt_candidate_auth()
+            return self.__real_execute(req)
         except Exception:
             return False
 
-    def discard_candidate_auth(self):
-        self.candidate_auth = None
-
-    def adopt_candidate_auth(self):
-        if not self.candidate_auth:
+    def __adopt_candidate_auth(self):
+        if not self.__candidate_auth:
             return
-        self.auth = self.candidate_auth
-        self.candidate_auth = None
+        self._auth = self.__candidate_auth
+        self.__candidate_auth = None
 
-    def _set_auth(self, auth):
-        self.auth = auth
-        self.candidate_auth = None
-
-    def set_auth(self, auth):
-        auth.reset_method()
-        self._set_auth(auth)
-
-    def check_specified_auth(self):
-        auth = self.auth
+    def __check_specified_auth(self):
+        auth = self._auth
         agent = get_info(f"{self.host}:{self.port}")
         if not auth.is_support(auth.get_version()):
             raise Exception(
@@ -111,55 +154,15 @@ class Client:
                 raise Exception((f"Auth version {auth.get_version()} "
                                  f"is not supported by agent {agent.version}"))
 
-    def execute(self, req: BaseRequest):
-        """Executes a request.
-
-        Args:
-            req (BaseRequest): The request to execute.
-
-        Returns:
-            BaseReponse: The response to the request.
-        """
-        if not self.auth.get_version():
-            self.confirm_auth_version()
-        elif not self.auth.is_auto_select_version():
-            self.check_specified_auth()
-
-        resp = self._real_execute(req)
-        if resp.status_code != 200:
-            err = resp.json().get("error")
-            if err is None:  # network error
-                raise Exception(
-                    f"Request failed with status code {resp.status_code}")
-            errcode = err.get("code")
-            if errcode == DECRYPT_ERROR_CODE:
-                self.auth.reset_method()
-            elif err == INCOMPATIBLE_ERROR_CODE:
-                return resp
-            else:
-                if errcode == UNAUTHORIZED_ERROR_CODE:
-                    ret = self.try_candidate_auth(req)
-                    if ret:
-                        return ret
-                    if self.auth.get_version() > AuthVersion.V2:
-                        return resp
-                    self.reset_auth()  # obshell-sdk-go is wrong
-            return self._real_execute(req)
-        return resp
-
-    def reconfirm_auth_version(self):
-        self.auth.reset()
-        self.confirm_auth_version()
-
-    def reset_auth(self):
-        if not self.auth.is_auto_select_version():
-            self.auth.reset_method()
+    def __reset_auth(self):
+        if not self._auth.is_auto_select_version:
+            self._auth.reset_method()
         else:
-            self.auth.reset()
-            self.confirm_auth_version()
+            self._auth.reset()
+            self.__confirm_auth_version()
 
-    def confirm_auth_version(self):
-        auth = self.auth
+    def __confirm_auth_version(self):
+        auth = self._auth
         agent = get_info(f"{self.host}:{self.port}")
         supported_auth = []
         if agent.version == OBShellVersion.V422:
@@ -174,9 +177,9 @@ class Client:
         if not auth.auto_select_version(supported_auth):
             raise Exception("No supported auth methods")
 
-    def _real_execute(self, req: BaseRequest):
+    def __real_execute(self, req: BaseRequest):
         if req.need_auth:
-            self.auth.auth(req)
+            self._auth.auth(req)
         resp = requests.request(req.method, req.url, data=req.data,
                                 headers=req.headers, timeout=req.timeout)
         return resp

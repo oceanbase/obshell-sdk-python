@@ -51,21 +51,25 @@ class Auth:
     def __init__(self, auth_type: AuthType, support_vers: List[Version]) -> None:
         if auth_type not in AuthType:
             raise ValueError("Invalid auth type")
-        self.auth_type = auth_type
-        self.support_vers = support_vers
         self._select_version = None
         self._auto_select_version = True
-        self.method = None
+        self._auth_type = auth_type
+        self._support_vers = support_vers
+        self._method = None
+
+    @property
+    def type(self):
+        return self._auth_type
+
+    @property
+    def is_auto_select_version(self) -> bool:
+        return self._auto_select_version
 
     def auth(self, request):
         raise NotImplementedError
 
-    @property
-    def type(self):
-        return self.auth_type
-
     def is_support(self, version: Version) -> bool:
-        return version in self.support_vers
+        return version in self._support_vers
 
     def set_version(self, version: Version):
         if not self.is_support(version):
@@ -86,12 +90,9 @@ class Auth:
                 return True
         return False
 
-    def is_auto_select_version(self) -> bool:
-        return self._auto_select_version
-
     def reset(self):
-        self.method = None
+        self._method = None
 
     def reset_method(self):
-        if self.method:
-            self.method.reset()
+        if self._method:
+            self._method.reset()

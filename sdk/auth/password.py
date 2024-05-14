@@ -40,12 +40,12 @@ class PasswordAuth(base.Auth):
             super().set_version(version)
 
     def auth(self, request) -> None:
-        if self.method is None:
+        if self._method is None:
             version = self.get_version()
             if version not in _AUTHS:
                 raise base.AuthError(f"Unsupported auth version: {version}")
-            self.method = _AUTHS[version](self.password)
-        self.method.auth(request)
+            self._method = _AUTHS[version](self.password)
+        self._method.auth(request)
 
 
 class PasswordAuthMethod:

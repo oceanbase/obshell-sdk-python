@@ -69,7 +69,7 @@ class ClientV1(Client):
                 - The other method will wait for the task to succeed. such as join_sync.
         - Aggregation methods:
             Methods that aggregate multiple requests to achieve a specific goal.
-            such as clear_uninitialized_agent and aggregate_upgrade_agent.
+            such as agg_clear_uninitialized_agent.
         - Other methods:
             such as wait_dag_succeed.
     """
@@ -84,15 +84,14 @@ class ClientV1(Client):
         Args:
             host (str): The hostname or IP address of the server to connect to.
             port (int, optional): The port number of the server. Defaults to 2886.
-            auth (Auth, optional):
-                The authentication method. Defaults to PasswordAuth("").
+            auth (Auth, optional): The authentication method. Defaults to PasswordAuth("").
             timeout (int, optional): The timeout of the request. Defaults to 600.
         """
         super().__init__(host, port, auth=auth, timeout=timeout)
 
     def _set_password_candidate_auth(self, password: str):
-        if self.get_auth().type == AuthType.PASSWORD:
-            self.set_candidate_auth(PasswordAuth(password))
+        if self._get_auth().type == AuthType.PASSWORD:
+            self._set_candidate_auth(PasswordAuth(password))
 
     def _encrypt_password(self, pwd: str) -> str:
         agent = get_info(self.server)
@@ -119,7 +118,7 @@ class ClientV1(Client):
             return prepared.body, prepared.headers
 
     def _handle_ret_from_content_request(self, req, cls=None):
-        resp = self.execute(req)
+        resp = self._execute(req)
         if resp.status_code == 200:
             if cls is None:
                 return True
@@ -133,7 +132,7 @@ class ClientV1(Client):
             raise OBShellHandleError(resp.json()['error'])
 
     def _handle_ret_request(self, req, cls=None):
-        resp = self.execute(req)
+        resp = self._execute(req)
         if resp.status_code == 200:
             if cls is None:
                 return True
@@ -156,13 +155,13 @@ class ClientV1(Client):
                                    f"{sub_task.task_logs[len(sub_task.task_logs) - 1]}\n")
             return logs
 
+    def __handle_task_ret_request(self, req):
+        return self._handle_ret_request(req, task.DagDetailDTO)
+
     def create_request(self, uri: str, method: str, data=None, need_auth=True):
         return BaseRequest(uri, method,
                            self.host, self.port,
-                           data=data, need_auth=need_auth, timeout=self.timeout)
-
-    def handle_task_ret_request(self, req):
-        return self._handle_ret_request(req, task.DagDetailDTO)
+                           data=data, need_auth=need_auth, timeout=self._timeout)
 
     # Function for OpenAPI
     def join(self, ip: str, port: int, zone: str) -> task.DagDetailDTO:
@@ -185,14 +184,14 @@ class ClientV1(Client):
         """
         try:
             c = ClientV1(ip, port)
-            auth = self.get_auth()
-            c.set_auth(auth)
+            auth = self._get_auth()
+            c._set_auth(auth)
             req = c.create_request("/api/v1/agent/join", "POST",
                                    data={
                                        "agentInfo": {"ip": self.host, "port": self.port},
                                        "zoneName": zone
                                    })
-            dag = c.handle_task_ret_request(req)
+            dag = c.__handle_task_ret_request(req)
         finally:
             auth.reset_method()
         return dag
@@ -230,7 +229,7 @@ class ClientV1(Client):
         """
         req = self.create_request("/api/v1/agent/remove", "POST",
                                   data={"ip": ip, "port": port})
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def remove_sync(self, ip: str, port: int) -> task.DagDetailDTO:
         """Removes an agent from the uninitialized cluster synchronously.
@@ -283,7 +282,7 @@ class ClientV1(Client):
                                       },
                                       "restart": restart
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def config_observer_sync(self,
                              configs: dict,
@@ -330,7 +329,7 @@ class ClientV1(Client):
                                       "clusterId": cluster_id,
                                       "rootPwd": self._encrypt_password(root_pwd)
                                   })
-        dag = self.handle_task_ret_request(req)
+        dag = self.__handle_task_ret_request(req)
         self._set_password_candidate_auth(root_pwd)
         return dag
 
@@ -366,7 +365,7 @@ class ClientV1(Client):
             OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request("/api/v1/ob/init", "POST")
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def init_sync(self) -> task.DagDetailDTO:
         """Initializes the cluster synchronously.
@@ -413,7 +412,7 @@ class ClientV1(Client):
                                       "scope": {"type": level, "target": target},
                                       "forcePassDag": {"id": force_pass_dag}
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def start_sync(
             self, level: str, target: list, force_pass_dag=None) -> task.DagDetailDTO:
@@ -474,7 +473,7 @@ class ClientV1(Client):
                                       "terminate": terminate,
                                       "forcePassDag": {"id": force_pass_dag}
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def stop_sync(self,
                   level: str,
@@ -521,7 +520,7 @@ class ClientV1(Client):
                                       "zone": zone,
                                       "obConfigs": ob_configs,
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def scale_out_sync(self,
                        ip: str,
@@ -588,7 +587,7 @@ class ClientV1(Client):
                                       "release": release,
                                       "upgradeDir": upgrade_dir
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def upgrade_agent_check_sync(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -631,7 +630,7 @@ class ClientV1(Client):
                                       "release": release,
                                       "upgradeDir": upgrade_dir
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def upgrade_agent_sync(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -675,7 +674,7 @@ class ClientV1(Client):
                                       "release": release,
                                       "upgradeDir": upgrade_dir
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def upgrade_ob_check_sync(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -728,7 +727,7 @@ class ClientV1(Client):
                                       "mode": mode,
                                       "upgradeDir": upgrade_dir
                                   })
-        return self.handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def upgrade_ob_sync(self,
                         version: str,
@@ -938,36 +937,7 @@ class ClientV1(Client):
                     raise e
 
     # Aggregation function
-    def aggregate_upgrade_agent(self,
-                                pkg: str,
-                                version: str,
-                                release: str,
-                                upgrade_dir=None) -> task.DagDetailDTO:
-        """Upgrades agent aggregately
-
-        Aggregately upgrades agent, including upload package, check before upgrade,
-        and upgrade agent.
-        Waits until upgrade successfully.
-
-        Args:
-            pkg (str): The path of the upgrade package.
-            version (str): The version of the agent to be upgraded to.
-            release (str): The release of the agent to be upgraded to.
-            upgrade_dir (str, optional): the temp dir used by task.
-
-        Returns:
-            Task detail as task.DagDetailDTO.
-
-        Raises:
-            OBShellHandleError: error message return by OBShell server.
-            TaskExecuteFailedError: raise when the task failed,
-                include the failed task detail and logs.
-        """
-        self.upload_pkg(pkg)
-        self.upgrade_agent_check_sync(version, release, upgrade_dir)
-        return self.upgrade_agent_sync(version, release, upgrade_dir)
-
-    def clear_uninitialized_agent(self):
+    def agg_clear_uninitialized_agent(self):
         """Clears the agent in a uninitialized cluster.
 
         Clears a "MASTER" or "FOLLOWER" agent to a "SINGLE".
