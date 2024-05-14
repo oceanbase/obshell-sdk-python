@@ -32,7 +32,7 @@ from utils.info import get_public_key, get_info
 
 
 class PasswordAuth(base.Auth):
-    def __init__(self, password: str, version=None) -> None:
+    def __init__(self, password: str = "", version=None) -> None:
         super().__init__(base.AuthType.PASSWORD,
                          [base.AuthVersion.V1, base.AuthVersion.V2])
         self.password = password
