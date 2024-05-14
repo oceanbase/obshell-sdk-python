@@ -48,7 +48,7 @@ class OBShellVersion:
 
 class Auth:
 
-    def __init__(self, auth_type: AuthType, support_vers: List[Version]) -> None:
+    def __init__(self, auth_type: AuthType, support_vers: List[AuthVersion]) -> None:
         if auth_type not in AuthType:
             raise ValueError("Invalid auth type")
         self._select_version = None
@@ -68,10 +68,10 @@ class Auth:
     def auth(self, request):
         raise NotImplementedError
 
-    def is_support(self, version: Version) -> bool:
+    def is_support(self, version: AuthVersion) -> bool:
         return version in self._support_vers
 
-    def set_version(self, version: Version):
+    def set_version(self, version: AuthVersion):
         if not self.is_support(version):
             raise ValueError("Version not supported")
         self._select_version = version
@@ -80,7 +80,7 @@ class Auth:
     def get_version(self):
         return self._select_version
 
-    def auto_select_version(self, vers: List[Version] = None) -> bool:
+    def auto_select_version(self, vers: List[AuthVersion] = None) -> bool:
         if not vers:
             vers = []
         for ver in vers:

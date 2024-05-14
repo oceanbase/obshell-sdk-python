@@ -32,12 +32,31 @@ from utils.info import get_public_key, get_info
 
 
 class PasswordAuth(base.Auth):
+    """Password-based authentication method."""
+
     def __init__(self, password: str = "", version=None) -> None:
+        """Initialize a new PasswordAuth instance.
+
+        Args:
+            password (str, optional):
+                The password to use for authentication, should be the same as
+                the password of root@sys of obcluster.
+                When the identity is SINGLE, the password is unuse.
+                Defaults to "".
+            version (AuthVersion, optional): The version of the authentication method to use.
+                If not provided, the version will be determined by the version of the OBShell.
+                Defaults to None.
+
+                - "v1": supported by OBShell version 4.2.2.0.
+                - "v2": supported by OBShell version 4.2.3.0 or later.
+        """
         super().__init__(base.AuthType.PASSWORD,
                          [base.AuthVersion.V1, base.AuthVersion.V2])
         self.password = password
-        if version:
-            super().set_version(version)
+        if version is not None:
+            if version not in _AUTHS_VERSION:
+                raise ValueError("Version not supported")
+            super().set_version(_AUTHS_VERSION[version])
 
     def auth(self, request) -> None:
         if self._method is None:
@@ -146,4 +165,9 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
 _AUTHS = {
     base.AuthVersion.V1: PasswordAuthMethodV1,
     base.AuthVersion.V2: PasswordAuthMethodV2,
+}
+
+_AUTHS_VERSION = {
+    "v1": base.AuthVersion.V1,
+    "v2": base.AuthVersion.V2,
 }
