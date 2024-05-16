@@ -874,7 +874,7 @@ class ClientV1(Client):
                                   data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
-    def get_ob_last_maintenance_dag(self, show_detail=True):
+    def get_ob_last_maintenance_dag(self, show_detail=True) -> task.DagDetailDTO:
         req = self.create_request("/api/v1/task/dag/maintain/ob", "GET",
                                   data={"showDetail": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
@@ -953,7 +953,8 @@ class ClientV1(Client):
             need_remove = True
         if dag.name == "Initialize cluster":
             if not dag.is_finished():
-                raise IllegalOperatorError("Cluster initialization is not finished.")
+                raise IllegalOperatorError(
+                    "Cluster initialization is not finished.")
             if dag.is_succeed() and dag.is_run():
                 raise IllegalOperatorError(
                     "The 'Initialize Cluster' task is already succeeded")
@@ -964,3 +965,62 @@ class ClientV1(Client):
         if need_remove:
             self.remove_sync(self.host, self.port)
         return True
+
+    def agg_create_cluster(
+        self,
+        servers_with_configs: dict,
+        cluster_name: str,
+        cluster_id: int,
+        root_pwd: str,
+        clear_if_failed=False
+    ):
+        """Creates a new obcluster.
+
+        Creates a new obcluster with the specified servers and configurations.
+
+        Args:
+            servers_with_configs (list): The dict of the server and its configurations.
+                The configuration should include the zone of the server.
+                Example: {'11.11.11.1:2886': {"zone": "zone1", "memory_limit": "18G", 
+                "system_memory": "4G", "log_disk_size": "24G"}, ...}
+            cluster_name (str): The name of the obcluster.
+            cluster_id (int): The id of the obcluster.
+            root_pwd (str): The password of root@sys user.
+            clear_if_failed (bool, optional): Whether to clear the uninitialized agent
+                if the task failed. Defaults to False.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        if self.server not in servers_with_configs:
+            raise IllegalOperatorError(
+                "servers_with_configs should include the server of the client.")
+        try:
+            if 'zone' not in servers_with_configs[self.server]:
+                raise IllegalOperatorError(
+                    "configs should include the zone of the server.")
+            self.join_sync(self.host, self.port,
+                           servers_with_configs[self.server]['zone'])
+            del servers_with_configs[self.server]['zone']
+            self.config_observer_sync(
+                servers_with_configs[self.server], "SERVER", [self.server])
+            del servers_with_configs[self.server]
+            for server, configs in servers_with_configs.items():
+                if 'zone' not in configs:
+                    raise IllegalOperatorError(
+                        "configs should include the zone of the server.")
+                ip, port = server.split(':')
+                self.join_sync(ip, port, configs['zone'])
+                del configs['zone']
+                self.config_observer_sync(configs, "SERVER", [server])
+            self.config_obcluster_sync(cluster_name, cluster_id, root_pwd)
+            self.init_sync()
+        except (OBShellHandleError, TaskExecuteFailedError, IllegalOperatorError) as e:
+            if clear_if_failed:
+                self.agg_clear_uninitialized_agent()
+            raise e
