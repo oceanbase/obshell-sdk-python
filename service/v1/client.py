@@ -51,7 +51,7 @@ class TaskExecuteFailedError(Exception):
         return f"Task '{self.dag.name}' execution failed: {self.message}"
 
 
-class UsageError(Exception):
+class IllegalOperatorError(Exception):
     pass
 
 
@@ -953,9 +953,9 @@ class ClientV1(Client):
             need_remove = True
         if dag.name == "Initialize cluster":
             if not dag.is_finished():
-                raise UsageError("Cluster initialization is not finished.")
+                raise IllegalOperatorError("Cluster initialization is not finished.")
             if dag.is_succeed() and dag.is_run():
-                raise UsageError(
+                raise IllegalOperatorError(
                     "The 'Initialize Cluster' task is already succeeded")
             if dag.is_failed():
                 self.operate_dag_sync(
