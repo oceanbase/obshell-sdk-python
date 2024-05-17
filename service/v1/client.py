@@ -17,6 +17,7 @@ import time
 import base64
 import os
 import requests
+import copy
 
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.PublicKey import RSA
@@ -996,21 +997,24 @@ class ClientV1(Client):
             OBShellHandleError: error message return by OBShell server.
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
+            IllegalOperatorError: raise when the operator is illegal.
         """
-        if self.server not in servers_with_configs:
+        
+        copied_configs = copy.deepcopy(servers_with_configs)
+        if self.server not in copied_configs:
             raise IllegalOperatorError(
-                "servers_with_configs should include the server of the client.")
+                "copied_configs should include the server of the client.")
         try:
-            if 'zone' not in servers_with_configs[self.server]:
+            if 'zone' not in copied_configs[self.server]:
                 raise IllegalOperatorError(
                     "configs should include the zone of the server.")
             self.join_sync(self.host, self.port,
-                           servers_with_configs[self.server]['zone'])
-            del servers_with_configs[self.server]['zone']
+                           copied_configs[self.server]['zone'])
+            del copied_configs[self.server]['zone']
             self.config_observer_sync(
-                servers_with_configs[self.server], "SERVER", [self.server])
-            del servers_with_configs[self.server]
-            for server, configs in servers_with_configs.items():
+                copied_configs[self.server], "SERVER", [self.server])
+            del copied_configs[self.server]
+            for server, configs in copied_configs.items():
                 if 'zone' not in configs:
                     raise IllegalOperatorError(
                         "configs should include the zone of the server.")
