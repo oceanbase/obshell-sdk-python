@@ -24,11 +24,19 @@ pip install git://github.com/oceanbase/obshell-sdk-python.git
 ### 创建客户端
 创建指定版本的 client
 ```python
-import obshell_sdk_python.service.v1.client as cli
-from obshell_sdk_python.sdk.auth.password import PasswordAuth
+import obshell.service.v1.client as ClientV1
+from obshell.sdk.auth.password import PasswordAuth
 
 def main():
-    client = cli.ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
+    client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
+```
+创建 client_set
+```python
+from obshell.service.client_set import ClientSet
+from obshell.sdk.auth.password import PasswordAuth
+
+def main():
+    client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 ```
 ### 部署 OBShell 集群
 OBShell-SDK-Python 提供了两类方法来创建一个 OBShell 集群，一是向 OBShell 请求对应的 API 成功后，立刻返回，二是在向 OBShell 请求 API 成功后，等待 OBShell 任务执行完成后再返回。前者任务异步执行，后者任务同步执行。
@@ -36,84 +44,84 @@ OBShell-SDK-Python 提供了两类方法来创建一个 OBShell 集群，一是�
 **部署一个 1-1-1 集群：**
 * 任务异步执行
 ```python
-import obshell_sdk_python.service.v1.client as cli
-from obshell_sdk_python.sdk.auth.password import PasswordAuth
+from obshell.service.client_set import ClientSet
+from obshell.sdk.auth.password import PasswordAuth
 def main():
-    client = cli.ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
+    client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 
     # join master
-    dag = client.join("11.11.11.1", 2886, "zone1")
-    client.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.join("11.11.11.1", 2886, "zone1")
+    client.v1.wait_dag_succeed(dag.generic_id)
     # join follower
-    dag = client.join("11.11.11.2", 2886, "zone2")
-    client.wait_dag_succeed(dag.generic_id)
-    dag = client.join("11.11.11.3", 2886, "zone3")
-    client.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.join("11.11.11.2", 2886, "zone2")
+    client.v1.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.join("11.11.11.3", 2886, "zone3")
+    client.v1.wait_dag_succeed(dag.generic_id)
 
     # configure observer
     configs = {
         "datafile_size": "24G", "log_disk_size": "24G", 
         "cpu_count": "16", "memory_limit": "16G", "system_memory": "8G", 
         "enable_syslog_recycle": "true", "enable_syslog_wf": "true"}
-    dag = client.config_observer(configs, "GLOBAL", [])
-    client.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.config_observer(configs, "GLOBAL", [])
+    client.v1.wait_dag_succeed(dag.generic_id)
 
     # configure obcluster
-    dag = client.config_obcluster_sync("test-sdk", 11, "****")
-    client.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.config_obcluster_sync("test-sdk", 11, "****")
+    client.v1.wait_dag_succeed(dag.generic_id)
 
     # initialize obcluster
-    dag = client.init_sync()
-    client.wait_dag_succeed(dag.generic_id)
+    dag = client.v1.init_sync()
+    client.v1.wait_dag_succeed(dag.generic_id)
     
     # get the status of the cluster
-    status = client.get_status()
+    status = client.v1.get_status()
     print(status)
 ```
 * 任务同步执行
 ```python
-import obshell_sdk_python.service.v1.client as cli
-from obshell_sdk_python.sdk.auth.password import PasswordAuth
+from obshell.service.client_set import ClientSet
+from obshell.sdk.auth.password import PasswordAuth
 
 def main():
-    client = cli.ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
+    client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 
     # join master
-    client.join_sync("11.11.11.1", 2886, "zone1")
+    client.v1.join_sync("11.11.11.1", 2886, "zone1")
     # join follower
-    client.join_sync("11.11.11.2", 2886, "zone2")
-    client.join_sync("11.11.11.3", 2886, "zone3")
+    client.v1.join_sync("11.11.11.2", 2886, "zone2")
+    client.v1.join_sync("11.11.11.3", 2886, "zone3")
 
     # configure observer
     configs = {
         "datafile_size": "24G", "log_disk_size": "24G", 
         "cpu_count": "16", "memory_limit": "16G", "system_memory": "8G", 
         "enable_syslog_recycle": "true", "enable_syslog_wf": "true"}
-    client.config_observer_sync(configs, "GLOBAL", [])
+    client.v1.config_observer_sync(configs, "GLOBAL", [])
 
     # configure obcluster
-    client.config_obcluster_sync("test-sdk", 11, "****")
+    client.v1.config_obcluster_sync("test-sdk", 11, "****")
 
     # initialize obcluster
-    client.init_sync()
+    client.v1.init_sync()
     
     # get the status of the cluster
-    status = client.get_status()
+    status = client.v1.get_status()
     print(status)
 ```
 ### 发起扩容
 将节点 '11.11.11.4' 扩容到节点 '11.11.11.1' 所在的集群中
 ```python
-import obshell_sdk_python.service.v1.client as cli
-from obshell_sdk_python.sdk.auth.password import PasswordAuth
+from obshell.service.client_set import ClientSet
+from obshell.sdk.auth.password import PasswordAuth
 
 def main():
-    client = cli.ClientV1("111.11.11.1", 2886, PasswordAuth("****"))
+    client = ClientSet("111.11.11.1", 2886, PasswordAuth("****"))
 
     # scale out
     configs = {
         "datafile_size": "24G", "log_disk_size": "24G", 
         "cpu_count": "16", "memory_limit": "16G", "system_memory": "8G", 
         "enable_syslog_recycle": "true", "enable_syslog_wf": "true"}
-    client.scale_out_sync("11.11.11.4", 2886, "zone3", configs)
+    client.v1.scale_out_sync("11.11.11.4", 2886, "zone3", configs)
 ```
