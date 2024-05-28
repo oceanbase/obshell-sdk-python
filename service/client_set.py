@@ -24,11 +24,11 @@ class ClientSet:
                  port: int = 2886,
                  auth=PasswordAuth(""),
                  timeout=DEFAULT_REQUEST_TIMEOUT):
-        self.v1 = ClientV1(host, port, auth, timeout)
+        self._v1 = ClientV1(host, port, auth, timeout)
 
     @property
-    def v1(self):
-        return self.v1
+    def v1(self) -> ClientV1:
+        return self._v1
 
     @property
     def v2(self):
