@@ -30,6 +30,7 @@ from obshell.request import BaseRequest
 from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
 import obshell.model.info as info
+import obshell.model.unit as unit
 
 
 class OBShellHandleError(Exception):
@@ -937,7 +938,42 @@ class ClientV1(Client):
                 else:
                     raise e
 
+    # Tenant API function
+    def create_unit_config(
+        self, unit_config_name: str, memory_size: str, max_cpu: int,
+        min_cpu: int = None, max_iops: int = None, min_iops: int = None,
+        log_disk_size: str = None
+    ) -> task.DagDetailDTO:
+        data = {}
+        data["name"] = unit_config_name
+        data["memorySize"] = memory_size
+        data["maxCpu"] = max_cpu
+        if min_cpu is not None:
+            data["minCpu"] = min_cpu
+        if max_iops is not None:
+            data["maxIops"] = max_iops
+        if min_iops is not None:
+            data["minIops"] = min_iops
+        if log_disk_size is not None:
+            data["logDiskSize"] = log_disk_size
+        req = self.create_request("/api/v1/unit/config", "POST", data=data)
+        return self._handle_ret_request(req)
+
+    def drop_unit_config(self, unit_config_name: str):
+        req = self.create_request(
+            f"/api/v1/unit/config/{unit_config_name}", "DELETE")
+        return self._handle_ret_request(req)
+
+    def get_all_unit_configs(self):
+        req = self.create_request("/api/v1/unit/config", "GET")
+        return self._handle_ret_from_content_request(req, unit.UnitConfig)
+
+    def get_unit_config(self, unit_config_name: str) -> unit.UnitConfig:
+        req = self.create_request(
+            f"/api/v1/unit/config/{unit_config_name}", "GET")
+        return self._handle_ret_request(req, unit.UnitConfig)
     # Aggregation function
+
     def agg_clear_uninitialized_agent(self):
         """Clears the agent in a uninitialized cluster.
 
