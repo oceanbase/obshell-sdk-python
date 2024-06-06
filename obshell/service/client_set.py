@@ -12,8 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from sdk.auth.password import PasswordAuth
-from service.v1.client import ClientV1
+
+from obshell.auth.password import PasswordAuth
+from obshell.service.client_v1 import ClientV1
 
 
 class ClientSet:

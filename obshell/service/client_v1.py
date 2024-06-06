@@ -22,14 +22,14 @@ import copy
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.PublicKey import RSA
 
-from utils.info import get_info, get_public_key
-from sdk.client import Client
-from sdk.auth.base import OBShellVersion, AuthType
-from sdk.auth.password import PasswordAuth
-from sdk.request.request import BaseRequest
-from model.ob import UpgradePkgInfo
-import model.task as task
-import model.info as info
+from obshell.info import get_info, get_public_key
+from obshell.client import Client
+from obshell.auth.base import OBShellVersion, AuthType
+from obshell.auth.password import PasswordAuth
+from obshell.request import BaseRequest
+from obshell.model.ob import UpgradePkgInfo
+import obshell.model.task as task
+import obshell.model.info as info
 
 
 class OBShellHandleError(Exception):
@@ -999,7 +999,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
             IllegalOperatorError: raise when the operator is illegal.
         """
-        
+
         copied_configs = copy.deepcopy(servers_with_configs)
         if self.server not in copied_configs:
             raise IllegalOperatorError(

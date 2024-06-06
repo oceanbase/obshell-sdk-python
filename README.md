@@ -24,16 +24,16 @@ Please ensure that OBShell is running when using it.
 ### Create a Client
 Create a specified version client.
 ```python
-import obshell.service.v1.client as cli
-from obshell.sdk.auth.password import PasswordAuth
+from obshell as ClientV1
+from obshell.auth.password import PasswordAuth
 
 def main():
-    client = cli.ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
+    client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
 ```
 Create client_set.
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
@@ -44,8 +44,8 @@ OBShell-SDK-Python provides two types of methods to deploy an OBShell cluster: t
 **Deploy a 1-1-1 cluster:**
 * Asynchronous Task Execution
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 
@@ -80,8 +80,8 @@ def main():
 ```
 * Synchronous Task Execution
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
@@ -112,8 +112,8 @@ def main():
 ### Scale out
 Scale out the agent '11.11.11.4' into the cluster where the agent '11.11.11.1' is located.
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("111.11.11.1", 2886, PasswordAuth("****"))

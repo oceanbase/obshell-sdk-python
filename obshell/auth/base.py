@@ -16,14 +16,16 @@
 from enum import Enum
 from typing import List
 
-from model.version import Version
+from obshell.model.version import Version
 
 
 class AuthError(Exception):
+
     pass
 
 
 class AuthVersion(Enum):
+
     V1 = "v1"
     V2 = "v2"
 
@@ -34,6 +36,7 @@ class AuthVersion(Enum):
 
 
 class AuthType(Enum):
+
     PASSWORD = 1
 
 

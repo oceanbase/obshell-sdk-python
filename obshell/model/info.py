@@ -16,7 +16,7 @@
 from typing import List
 from enum import Enum
 
-from model.version import Version
+from obshell.model.version import Version
 
 
 class AgentInfo:

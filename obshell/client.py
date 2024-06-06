@@ -15,11 +15,11 @@
 
 import requests
 
-from sdk.request.request import BaseRequest
-from sdk.auth.password import PasswordAuth
-from sdk.auth.base import AuthType, Auth
-from sdk.auth.base import AuthVersion, OBShellVersion
-from utils.info import get_info
+from obshell.request import BaseRequest
+from obshell.auth.password import PasswordAuth
+from obshell.auth.base import AuthType, Auth
+from obshell.auth.base import AuthVersion, OBShellVersion
+from obshell.info import get_info
 
 
 DECRYPT_ERROR_CODE = 1     # decrypt error

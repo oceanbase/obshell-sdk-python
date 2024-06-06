@@ -16,7 +16,7 @@
 
 import requests
 
-from model.info import AgentInfo
+from obshell.model.info import AgentInfo
 
 DEFAULT_TIMEOUT = 1000
 

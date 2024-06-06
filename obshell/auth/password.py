@@ -26,9 +26,9 @@ from Crypto.Random import get_random_bytes
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 
 
-import sdk.auth.base as base
-from model.info import Agentidentity
-from utils.info import get_public_key, get_info
+import obshell.auth.base as base
+from obshell.model.info import Agentidentity
+from obshell.info import get_public_key, get_info
 
 
 class PasswordAuth(base.Auth):

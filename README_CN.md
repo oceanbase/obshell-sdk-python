@@ -24,16 +24,16 @@ pip install git://github.com/oceanbase/obshell-sdk-python.git
 ### 创建客户端
 创建指定版本的 client
 ```python
-import obshell.service.v1.client as ClientV1
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientV1
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
 ```
 创建 client_set
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
@@ -44,8 +44,8 @@ OBShell-SDK-Python 提供了两类方法来创建一个 OBShell 集群，一是�
 **部署一个 1-1-1 集群：**
 * 任务异步执行
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 
@@ -80,8 +80,8 @@ def main():
 ```
 * 任务同步执行
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
