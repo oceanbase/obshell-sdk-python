@@ -15,6 +15,7 @@
 
 import json
 from enum import Enum
+from .info import model_str
 
 
 class State(Enum):
@@ -71,8 +72,7 @@ class TaskStatusDTO:
         return self.operator == Operator.CANCEL_STR.value
 
     def __str__(self) -> str:
-        return (f"TaskStatusDTO({self.state}, {self.operator}, "
-                f"{self.start_time}, {self.end_time})")
+        return model_str(self)
 
 
 class DagDetailDTO(TaskStatusDTO):
@@ -94,11 +94,7 @@ class DagDetailDTO(TaskStatusDTO):
         return DagDetailDTO(data)
 
     def __str__(self) -> str:
-        return ("{"+f"generic_id: {self.generic_id}, dag_id: {self.dag_id}, "
-                f"name: {self.name}, stage: {self.stage}, max_stage: {self.max_stage}, "
-                f"state: {self.state}, operator: {self.operator}, "
-                f"start_time: {self.start_time}, end_time: {self.end_time}, "
-                f"nodes: {self.nodes}, additional_data: {self.additional_data}"+"}")
+        return model_str(self)
 
 
 class NodeDetailDTO(TaskStatusDTO):
@@ -118,11 +114,7 @@ class NodeDetailDTO(TaskStatusDTO):
         return NodeDetailDTO(data)
 
     def __str__(self) -> str:
-        return ("{"+f"generic_id: {self.generic_id}, node_id: {self.node_id}, "
-                f"name: {self.name}, state: {self.state}, operator: {self.operator}, "
-                f"start_time: {self.start_time}, end_time: {self.end_time}, "
-                f"sub_tasks: {self.sub_tasks}, "
-                f"additional_data: {self.additional_data}"+"}")
+        return model_str(self)
 
 
 class TaskDetailDTO(TaskStatusDTO):
@@ -143,9 +135,4 @@ class TaskDetailDTO(TaskStatusDTO):
         return TaskDetailDTO(data)
 
     def __str__(self) -> str:
-        return ("{"+f"generic_id: {self.generic_id}, task_id: {self.task_id}, "
-                f"name: {self.name}, state: {self.state}, operator: {self.operator}, "
-                f"start_time: {self.start_time}, end_time: {self.end_time}, "
-                f"execute_times: {self.execute_times}, "
-                f"execute_agent: {self.execute_agent}, task_logs: {self.task_logs}, "
-                f"additional_data: {self.additional_data}"+"}")
+        return model_str(self)

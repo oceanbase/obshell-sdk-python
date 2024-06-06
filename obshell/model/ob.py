@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .info import model_str
+
+
 class UpgradePkgInfo:
 
     def __init__(self, data: dict):
@@ -32,3 +35,6 @@ class UpgradePkgInfo:
     @classmethod
     def from_dict(cls, data: dict):
         return UpgradePkgInfo(data)
+
+    def __str__(self) -> str:
+        model_str(self)

@@ -17,6 +17,20 @@ from typing import List
 from enum import Enum
 
 from obshell.model.version import Version
+import json
+
+
+def model_str(cls):
+    def __convert_value(value):
+        if isinstance(value, list):
+            return [__convert_value(item) for item in value]
+        elif isinstance(value, dict):
+            return {f"{key}": __convert_value(value) for key, value in value.items()}
+        else:
+            return str(value)
+    members = ", ".join(
+        f"\"{k}\":\"{__convert_value(v)}\"" for k, v in cls.__dict__.items())
+    return '{' + members.replace("'", "\"") + '}'
 
 
 class AgentInfo:
@@ -62,10 +76,7 @@ class ServerConfig:
         return ServerConfig(data)
 
     def __str__(self) -> str:
-        return ("{" + f"svr_ip: {self.svr_ip}, svr_port: {self.svr_port},"
-                f"sql_port: {self.sql_port}, agent_port: {self.agent_port}, "
-                f"with_rootserver: {self.with_rootserver}, status: {self.status}, "
-                f"build_version: {self.build_version}" + "}")
+        return model_str(self)
 
 
 class ClusterConfig:
@@ -84,8 +95,7 @@ class ClusterConfig:
         return ClusterConfig(data)
 
     def __str__(self) -> str:
-        return ("{"+f"id: {self.cluster_id}, name: {self.cluster_name}, "
-                f"version: {self.version}, topology: {self.zone_config}"+"}")
+        return model_str(self)
 
 
 class AgentInstance:
@@ -102,8 +112,7 @@ class AgentInstance:
         return AgentInstance(data)
 
     def __str__(self) -> str:
-        return ("{"+f"ip: {self.ip}, port: {self.port}, identity: {self.identity}, "
-                f"version: {self.version}, zone: {self.zone}"+"}")
+        return model_str(self)
 
 
 class ObInfo:
@@ -122,7 +131,7 @@ class ObInfo:
         return ObInfo(data)
 
     def __str__(self) -> str:
-        return "{"+f"agent_info:{self.agents}, obcluster_info:{self.cluster})"+"}"
+        return model_str(self)
 
 
 class AgentInfoWithIdentity:
@@ -137,7 +146,7 @@ class AgentInfoWithIdentity:
         return AgentInfoWithIdentity(data)
 
     def __str__(self) -> str:
-        return "{"+f"ip: {self.ip}, port: {self.port}, identity: {self.identity}"+"}"
+        return model_str(self)
 
 
 class AgentStatusWithOb:
@@ -156,10 +165,7 @@ class AgentStatusWithOb:
         return AgentStatusWithOb(data)
 
     def __str__(self) -> str:
-        return ("{"+f"agent: {self.agent}, state: {self.state}, "
-                f" version: {self.version}, pid: {self.pid}, "
-                f"start_at: {self.start_at}, ob_state: {self.ob_state}, "
-                f"under_maintenance: {self.under_maintenance}"+"}")
+        return model_str(self)
 
 
 class AgentStatusWithZone:
@@ -180,8 +186,4 @@ class AgentStatusWithZone:
         return AgentStatusWithZone(data)
 
     def __str__(self) -> str:
-        return ("{"+f"ip: {self.ip}, port: {self.port}, "
-                f"identity: {self.identity}, zone: {self.zone}, "
-                f"state: {self.state}, version: {self.version}, "
-                f"pid: {self.pid}, start_at: {self.start_at}, "
-                f"home_path: {self.home_path}"+"}")
+        return model_str(self)
