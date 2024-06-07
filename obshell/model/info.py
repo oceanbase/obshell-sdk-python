@@ -17,7 +17,6 @@ from typing import List
 from enum import Enum
 
 from obshell.model.version import Version
-import json
 
 
 def model_str(cls):
