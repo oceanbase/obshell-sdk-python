@@ -37,4 +37,4 @@ class UpgradePkgInfo:
         return UpgradePkgInfo(data)
 
     def __str__(self) -> str:
-        model_str(self)
+        return model_str(self)
