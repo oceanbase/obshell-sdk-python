@@ -1,0 +1,83 @@
+version: "2.0"
+
+only:
+  triggerType:
+    - pullRequest
+    - tagPush
+    - push
+
+stages:
+  - 合规扫描
+  - 代码检查
+
+
+jobs:
+  Header 扫描:
+    stage: 合规扫描
+    component: shell-with-clone
+    inputs:
+      script: |
+        #!/bin/bash
+        TARGET_DIR="${BASE_WORKSPACE}"
+        echo "$TARGET_DIR"
+
+        COPYRIGHT_TEXT=$'# coding: utf-8\n'
+        COPYRIGHT_TEXT+=$'# Copyright (c) 2024 OceanBase.\n'
+        COPYRIGHT_TEXT+=$'#\n'
+        COPYRIGHT_TEXT+=$'# Licensed under the Apache License, Version 2.0 (the "License");\n'
+        COPYRIGHT_TEXT+=$'# you may not use this file except in compliance with the License.\n'
+        COPYRIGHT_TEXT+=$'# You may obtain a copy of the License at\n'
+        COPYRIGHT_TEXT+=$'#\n'
+        COPYRIGHT_TEXT+=$'#     http://www.apache.org/licenses/LICENSE-2.0\n'
+        COPYRIGHT_TEXT+=$'#\n'
+        COPYRIGHT_TEXT+=$'# Unless required by applicable law or agreed to in writing, software\n'
+        COPYRIGHT_TEXT+=$'# distributed under the License is distributed on an "AS IS" BASIS,\n'
+        COPYRIGHT_TEXT+=$'# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n'
+        COPYRIGHT_TEXT+=$'# See the License for the specific language governing permissions and\n'
+        COPYRIGHT_TEXT+=$'# limitations under the License.'
+
+        non_compliant_files=()
+
+        temp_file=$(mktemp)
+        find "$TARGET_DIR" -type f -name "*.py" > "$temp_file"
+        while IFS= read -r file; do
+            start_of_file=$(head -n 14 "$file") 
+            if [[ "$start_of_file" != "$COPYRIGHT_TEXT" ]]; then
+                non_compliant_files+=("$file")
+            fi
+        done < "$temp_file"
+
+        rm "$temp_file"
+
+        if [ ${#non_compliant_files[@]} -ne 0 ]; then
+            echo -e "\033[31mError: The following files are missing the correct copyright header:\033[0m"
+            for file in "${non_compliant_files[@]}"; do
+                echo -e "\033[31m${file}\033[0m"
+            done
+            exit 1
+        else
+            echo "All files have the correct copyright header."
+        fi
+
+        exit 0
+  
+  规范检查:
+    stage: 代码检查
+    component: python-sast
+    inputs:
+      excludes: 
+        - "**__init__.py**"
+        - "**/tests/**"
+        - ansible/*
+        - config/*
+        - deployment_misc/*
+        - fund_loss_conf/*
+        - openapi/*
+        - scripts/*
+        - supervisord/*
+    config:
+      execute:
+        timeout: 600
+      afterExecute:
+        checkRule:
+          - ${{outputs.critical}} <= 10

@@ -16,18 +16,20 @@
 
 import requests
 
-from model.info import AgentInfo
+from obshell.model.info import AgentInfo
+
+DEFAULT_TIMEOUT = 1000
 
 
 def get_info(server: str) -> AgentInfo:
     url = f"http://{server}/api/v1/info"
-    resp = requests.get(url)
+    resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get version from {server}, status code: {resp.status_code}")
+        raise Exception(f"Failed to get version from {server}, "
+                        f"status code: {resp.status_code}")
     data = resp.json().get("data", {})
     if not data:
         raise Exception(f"Failed to get version from {server}, no data")
-    print (data)
     identity = data.get("identity")
     version = data.get("version")
     auth_version = data.get("auth_version")
@@ -35,16 +37,16 @@ def get_info(server: str) -> AgentInfo:
     info = AgentInfo(identity, version, auth_version, supported_auth)
     return info
 
+
 def get_public_key(server: str) -> str:
     url = f"http://{server}/api/v1/secret"
-    resp = requests.get(url)
+    resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get public key from {server}, status code: {resp.status_code}")
-    
+        raise Exception(f"Failed to get public key from {server}, "
+                        f"status code: {resp.status_code}")
+
     data = resp.json().get("data", {})
     if not data:
         raise Exception(f"Failed to get version from {server}, no data")
-    
+
     return data.get("public_key")
-
-

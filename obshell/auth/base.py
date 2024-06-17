@@ -13,58 +13,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from enum import Enum
 from typing import List
 
-from model.version import Version
+from obshell.model.version import Version
 
 
 class AuthError(Exception):
+
     pass
 
 
 class AuthVersion(Enum):
+
     V1 = "v1"
     V2 = "v2"
 
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+        return NotImplemented
+
 
 class AuthType(Enum):
+
     PASSWORD = 1
 
 
 class OBShellVersion:
 
-    V422 = Version("4.2.2")
-    V423 = Version("4.2.3")
+    V422 = Version("4.2.2.0")
+    V423 = Version("4.2.3.0")
 
-    @classmethod
-    def __contains__(self, member) -> bool:
-        return member in self.__dict__
+    def __contains__(self, item) -> bool:
+        return item in self.__dict__
 
 
 class Auth:
 
-    def __init__(self, auth_type: str, support_vers: List[Version]) -> None:
-        if auth_type not in AuthType.__members__:
+    def __init__(self, auth_type: AuthType, support_vers: List[AuthVersion]) -> None:
+        if auth_type not in AuthType:
             raise ValueError("Invalid auth type")
-        self.auth_type = auth_type
-        self.support_vers = support_vers
         self._select_version = None
         self._auto_select_version = True
-        self.method = None
+        self._auth_type = auth_type
+        self._support_vers = support_vers
+        self._method = None
+
+    @property
+    def type(self):
+        return self._auth_type
+
+    @property
+    def is_auto_select_version(self) -> bool:
+        return self._auto_select_version
 
     def auth(self, request):
         raise NotImplementedError
-    
-    @property
-    def type(self):
-        return self.auth_type
-    
-    def is_support(self, version: Version) -> bool:
-        return version in self.support_vers
-    
-    def set_version(self, version: Version):
+
+    def is_support(self, version: AuthVersion) -> bool:
+        return version in self._support_vers
+
+    def set_version(self, version: AuthVersion):
         if not self.is_support(version):
             raise ValueError("Version not supported")
         self._select_version = version
@@ -72,22 +82,20 @@ class Auth:
 
     def get_version(self):
         return self._select_version
-    
-    def auto_select_version(self, vers: List[Version]=[]) -> bool:
+
+    def auto_select_version(self, vers: List[AuthVersion] = None) -> bool:
+        if not vers:
+            vers = []
         for ver in vers:
             if self.is_support(ver):
                 self._select_version = ver
                 self._auto_select_version = True
                 return True
         return False
-    
-    def is_auto_select_version(self) -> bool:
-        return self._auto_select_version
-            
+
     def reset(self):
-        self.method = None
+        self._method = None
 
     def reset_method(self):
-        if self.method:
-            self.method.reset()
-    
+        if self._method:
+            self._method.reset()
