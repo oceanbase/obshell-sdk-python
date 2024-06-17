@@ -32,7 +32,7 @@ class Client:
     def __init__(self,
                  host: str,
                  port: int = 2886,
-                 auth=PasswordAuth(""),
+                 auth=None,
                  timeout=None) -> None:
         """
         Initialize a new Client instance.
@@ -43,6 +43,8 @@ class Client:
         """
         self._host = host
         self._port = port
+        if auth is None:
+            auth = PasswordAuth()
         self._auth = auth
         self._timeout = timeout
         self.__candidate_auth = None
