@@ -42,8 +42,8 @@ class AuthType(Enum):
 
 class OBShellVersion:
 
-    V422 = Version("4.2.2.0")
-    V423 = Version("4.2.3.0")
+    V422 = Version("4.2.2")
+    V423 = Version("4.2.3")
 
     def __contains__(self, item) -> bool:
         return item in self.__dict__

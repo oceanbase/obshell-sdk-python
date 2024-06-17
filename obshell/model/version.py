@@ -24,7 +24,16 @@ class Version(str):
             '(\d+)([^\._]*)', self.__str__())]
 
     def __eq__(self, value):
-        return value is not None and self.__val__ == self.__class__(value).__val__
+        if value is None:
+            return False
+        value = self.__class__(value)
+        n = len(self.__val__)
+        m = len(value.__val__)
+        if n < m:
+            self.__val__ += value.__val__[n:]
+        elif n > m:
+            value.__val__ += self.__val__[m:]
+        return self.__val__ == self.__class__(value).__val__
 
     def __gt__(self, value):
         return value is None or self.__val__ > self.__class__(value).__val__
