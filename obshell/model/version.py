@@ -27,13 +27,13 @@ class Version(str):
         if value is None:
             return False
         value = self.__class__(value)
-        n = len(self.__val__)
-        m = len(value.__val__)
+        x, n = self.__val__ , len(self.__val__)
+        y, m = value.__val__, len(value.__val__)
         if n < m:
-            self.__val__ += value.__val__[n:]
+            x = self.__val__ + value.__val__[n:]
         elif n > m:
-            value.__val__ += self.__val__[m:]
-        return self.__val__ == self.__class__(value).__val__
+            y = value.__val__ + self.__val__[m:]
+        return x == y
 
     def __gt__(self, value):
         return value is None or self.__val__ > self.__class__(value).__val__
