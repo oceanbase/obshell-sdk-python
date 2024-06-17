@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
+from .info import model_str
 
 
 class UnitConfig:
@@ -28,12 +28,10 @@ class UnitConfig:
         self.log_disk_size = data["log_disk_size"]
         self.max_iops = data["max_iops"]
         self.min_iops = data["min_iops"]
-        self.iops_weight = data["iops_weight"]
-        self.data_disk_size = data["data_disk_size"]
 
     @classmethod
     def from_dict(cls, data: dict):
         return UnitConfig(data)
 
     def __str__(self):
-        return json.dumps(self.__dict__)
+        return model_str(self)

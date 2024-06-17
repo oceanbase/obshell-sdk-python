@@ -86,6 +86,7 @@ class Client:
             errcode = err.get("code")
             if errcode == DECRYPT_ERROR_CODE:
                 self._auth.reset_method()
+                self.__real_execute(req)
             elif err == INCOMPATIBLE_ERROR_CODE:
                 return resp
             else:
@@ -96,7 +97,7 @@ class Client:
                     if self._auth.get_version() > AuthVersion.V2:
                         return resp
                     self.__reset_auth()  # obshell-sdk-go is wrong
-            return self.__real_execute(req)
+                    self.__real_execute(req)
         return resp
 
     def _get_auth(self):

@@ -18,6 +18,7 @@ import base64
 import os
 import requests
 import copy
+from typing import List
 
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.PublicKey import RSA
@@ -31,6 +32,7 @@ from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
 import obshell.model.info as info
 import obshell.model.unit as unit
+import obshell.model.tenant as tenant
 
 
 class OBShellHandleError(Exception):
@@ -940,22 +942,22 @@ class ClientV1(Client):
 
     # Tenant API function
     def create_unit_config(
-        self, unit_config_name: str, memory_size: str, max_cpu: int,
-        min_cpu: int = None, max_iops: int = None, min_iops: int = None,
+        self, unit_config_name: str, memory_size: str, max_cpu: float,
+        min_cpu: float = None, max_iops: int = None, min_iops: int = None,
         log_disk_size: str = None
     ) -> task.DagDetailDTO:
         data = {}
         data["name"] = unit_config_name
-        data["memorySize"] = memory_size
-        data["maxCpu"] = max_cpu
+        data["memory_size"] = memory_size
+        data["max_cpu"] = max_cpu
         if min_cpu is not None:
             data["minCpu"] = min_cpu
         if max_iops is not None:
-            data["maxIops"] = max_iops
+            data["max_iops"] = max_iops
         if min_iops is not None:
-            data["minIops"] = min_iops
+            data["min_iops"] = min_iops
         if log_disk_size is not None:
-            data["logDiskSize"] = log_disk_size
+            data["log_disk_size"] = log_disk_size
         req = self.create_request("/api/v1/unit/config", "POST", data=data)
         return self._handle_ret_request(req)
 
@@ -965,13 +967,153 @@ class ClientV1(Client):
         return self._handle_ret_request(req)
 
     def get_all_unit_configs(self):
-        req = self.create_request("/api/v1/unit/config", "GET")
+        req = self.create_request("/api/v1/units/config", "GET")
         return self._handle_ret_from_content_request(req, unit.UnitConfig)
 
     def get_unit_config(self, unit_config_name: str) -> unit.UnitConfig:
         req = self.create_request(
             f"/api/v1/unit/config/{unit_config_name}", "GET")
         return self._handle_ret_request(req, unit.UnitConfig)
+
+    def create_tenant(
+            self, name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
+            root_password: str = None, charset: str = None, collation: str = None, read_only: bool = False,
+            comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
+        data = {
+            "name": name,
+            "zone_list": [zone.__dict__ for zone in zone_list],
+        }
+        options = ['mode', 'primary_zone', 'whitelist', 'root_password', 'charset',
+                   'collation', 'read_only', 'comment', 'variables', 'parameters']
+        mydict = locals()
+        for k, v in mydict.items():
+            if k in options and v is not None:
+                data[k] = v
+        req = self.create_request("/api/v1/tenant", "POST", data=data)
+        return self.__handle_task_ret_request(req)
+
+    # TODO: 是否要做参数类型检查,不检查的话,如果用户设置了whitelist = ["%"], obshell 其实是解析不出这个东西的
+    # 又因为他不是required,所以不会报错.
+    def create_tenant_sync(
+            self, name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
+            root_password: str = None, charset: str = None, collation: str = None, read_only: bool = False,
+            comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
+        dag = self.create_tenant(
+            name, zone_list, mode, primary_zone, whitelist, root_password, charset, collation, read_only, comment, variables, parameters)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def drop_tenant(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}", "DELETE", data={
+                                  "need_drop_resource_pool": need_drop_resource_pool, "need_recycle": need_recycle})
+        return self.__handle_task_ret_request(req)
+
+    def drop_tenant_sync(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
+        dag = self.drop_tenant(
+            tenant_name, need_drop_resource_pool, need_recycle)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def lock_tenant(self, tenant_name: str) -> bool:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/lock", "POST")
+        return self._handle_ret_request(req)
+
+    def unlock_tenant(self, tenant_name: str) -> bool:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/lock", "DELETE")
+        return self._handle_ret_request(req)
+
+    def add_tenant_replica(self, tenant_name: str, zone_list: List[tenant.ZoneParam]) -> task.DagDetailDTO:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "POST", data={
+            "zone_list": [zone.__dict__ for zone in zone_list]
+        })
+        return self.__handle_task_ret_request(req)
+
+    def add_tenant_replica_sync(self, tenant_name: str, zone_list: List[tenant.ZoneParam]) -> task.DagDetailDTO:
+        dag = self.add_tenant_replica(tenant_name, zone_list)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_tenant_replica(self, tenant_name: str, zones: List[str]) -> task.DagDetailDTO:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "DELETE", data={
+            "zones": zones
+        })
+        return self.__handle_task_ret_request(req)
+
+    def delete_tenant_replica_sync(self, tenant_name: str, zones: List[str]) -> task.DagDetailDTO:
+        dag = self.delete_tenant_replica(tenant_name, zones)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def modify_tenant_replica(self, tenant_name: str, zone_list: List[tenant.ModifyReplicaParam]) -> task.DagDetailDTO:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "PATCH", data={
+            "zone_list": [zone.__dict__ for zone in zone_list]
+        })
+        return self.__handle_task_ret_request(req)
+
+    def modify_tenant_replica_sync(self, tenant_name: str, zone_list: List[tenant.ModifyReplicaParam]) -> task.DagDetailDTO:
+        dag = self.modify_tenant_replica(tenant_name, zone_list)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def set_tenant_primary_zone(self, tenant_name: str, primary_zone: str):
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/primary-zone", "PUT", data={
+            "primary_zone": primary_zone
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_white_list(self, tenant_name: str, white_list: str):
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/whitelist", "PUT", data={
+            "whitelist": white_list
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_root_password(self, tenant_name: str, new_password: str, old_password: str = ""):
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/password", "PUT", data={
+            "old_password": old_password,
+            "new_password": new_password
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_variables(self, tenant_name: str, variables: dict):
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/variables", "PUT", data={
+            "variables": variables
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_parameters(self, tenant_name: str, parameters: dict):
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/parameters", "PUT", data={
+            "parameters": parameters
+        })
+        return self._handle_ret_request(req)
+
+    def get_tenant_variable(self, tenant_name: str, variable: str) -> tenant.VariableInfo:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/variable/{variable}", "GET")
+        return self._handle_ret_request(req, tenant.VariableInfo)
+
+    def get_tenant_parameter(self, tenant_name: str, parameter: str) -> tenant.ParameterInfo:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/parameter/{parameter}", "GET")
+        return self._handle_ret_request(req, tenant.ParameterInfo)
+
+    def list_tenant_variables(self, tenant_name: str, limit: int = 25) -> List[tenant.VariableInfo]:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/variables", "GET", data={
+            "limit": limit
+        })
+        return self._handle_ret_from_content_request(req, tenant.VariableInfo)
+
+    def list_tenant_parameters(self, tenant_name: str, limit: int = 25) -> List[tenant.ParameterInfo]:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/parameters", "GET", data={
+            "limit": limit
+        })
+        return self._handle_ret_from_content_request(req, tenant.ParameterInfo)
+
+    def get_tenant_info(self, tenant_name: str) -> tenant.TenantInfo:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}", "GET")
+        return self._handle_ret_request(req, tenant.TenantInfo)
+
+    def get_all_tenants(self, limit: int = 25) -> List[tenant.TenantOverView]:
+        req = self.create_request("/api/v1/tenants/overview", "GET", data={
+            "limit": limit
+        })
+        return self._handle_ret_from_content_request(req, tenant.TenantInfo)
+
     # Aggregation function
 
     def agg_clear_uninitialized_agent(self):
@@ -1018,7 +1160,7 @@ class ClientV1(Client):
         Args:
             servers_with_configs (list): The dict of the server and its configurations.
                 The configuration should include the zone of the server.
-                Example: {'11.11.11.1:2886': {"zone": "zone1", "memory_limit": "18G", 
+                Example: {'11.11.11.1:2886': {"zone": "zone1", "memory_limit": "18G",
                 "system_memory": "4G", "log_disk_size": "24G"}, ...}
             cluster_name (str): The name of the obcluster.
             cluster_id (int): The id of the obcluster.
