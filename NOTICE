@@ -4,4 +4,7 @@ Copyright (c) 2024 OceanBase.
 This product contains software (https://github.com/Legrandin/pycryptodome) developed
 by Legrandin Helder Eijs, licensed under BSD 2-Clause License.
 
+This product contains software (https://github.com/psf/requests.git) developed
+by Kenneth Reitz, licensed under Apache Software License (Apache-2.0).
+
 See also https://www.apache.org/dev/crypto.html and/or seek legal counsel.

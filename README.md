@@ -24,8 +24,8 @@ Please ensure that OBShell is running when using it.
 ### Create a Client
 Create a specified version client.
 ```python
-from obshell as ClientV1
-from obshell.auth.password import PasswordAuth
+from obshell import ClientV1
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
