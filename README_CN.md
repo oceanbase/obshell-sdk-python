@@ -20,9 +20,9 @@ pip install git://github.com/oceanbase/obshell-sdk-python.git
 ```
 
 ## 快速使用
-使用时请确保 OBShell 处于运行状态
+使用时请确保 OBShell 处于运行状态。
 ### 创建客户端
-创建指定版本的 client
+创建指定版本的 client。
 ```python
 from obshell import ClientV1
 from obshell.auth import PasswordAuth
@@ -30,7 +30,7 @@ from obshell.auth import PasswordAuth
 def main():
     client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
 ```
-创建 client_set
+创建 client_set。
 ```python
 from obshell import ClientSet
 from obshell.auth import PasswordAuth
@@ -110,7 +110,7 @@ def main():
     print(status)
 ```
 ### 发起扩容
-将节点 '11.11.11.4' 扩容到节点 '11.11.11.1' 所在的集群中
+将节点 '11.11.11.4' 扩容到节点 '11.11.11.1' 所在的集群中。
 ```python
 from obshell.service.client_set import ClientSet
 from obshell.sdk.auth.password import PasswordAuth
