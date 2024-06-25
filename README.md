@@ -16,7 +16,7 @@ English | [Chinese](README_CN.md)
 
 ## Install
 ```
-pip install git://github.com/oceanbase/obshell-sdk-python.git
+pip install obshell
 ```
 
 ## Quick Start
