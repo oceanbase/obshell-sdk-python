@@ -33,7 +33,7 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: Apache Software License 2.0',
+        'License :: OSI Approved :: Apache Software License',
     ],
     python_requires='>=3.6',
 )
