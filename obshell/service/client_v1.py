@@ -1116,6 +1116,37 @@ class ClientV1(Client):
         })
         return self._handle_ret_from_content_request(req, tenant.TenantOverView)
 
+    # Pool API function
+    def list_resource_pools(self, limit: int = 25) -> List[pool.ResourcePoolInfo]:
+        req = self.create_request("/api/v1/resource-pools", "GET", data={
+            "limit": limit
+        })
+        return self._handle_ret_from_content_request(req, pool.ResourcePoolInfo)
+
+    def drop_resource_pool(self, pool_name: str):
+        req = self.create_request(
+            f"/api/v1/resource-pool/{pool_name}", "DELETE")
+        return self._handle_ret_request(req)
+
+    # Recyclebin API function
+    def flashback_recyclebin_tenant(self, object_name: str, new_name: str = None):
+        req = self.create_request(f"/api/v1/recyclebin/tenant", "POST", data={
+            "object_or_original_name": object_name,
+            "new_name": new_name
+        })
+        return self._handle_ret_request(req)
+
+    def purge_recyclebin_tenant(self, object_or_tenant_name: str):
+        req = self.create_request(
+            f"/api/v1/recyclebin/tenant/{object_or_tenant_name}", "DELETE")
+        return self._handle_ret_request(req)
+
+    def list_recyclebin_tenants(self, limit: int = 25) -> List[recyclebin.RecyclebinTenantInfo]:
+        req = self.create_request("/api/v1/recyclebin/tenants", "GET", data={
+            "limit": limit
+        })
+        return self._handle_ret_from_content_request(req, recyclebin.RecyclebinTenantInfo)
+
     # Aggregation function
 
     def agg_clear_uninitialized_agent(self):

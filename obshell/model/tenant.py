@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .info import model_str
-from .unit import UnitConfig
+from .resource_pool import ResourcePoolWithUnit
 
 
 class ZoneParam:
@@ -107,23 +107,6 @@ class TenantInfo(TenantOverView):
     @classmethod
     def from_dict(cls, data: dict):
         return TenantInfo(data)
-
-    def __str__(self):
-        return model_str(self)
-
-
-class ResourcePoolWithUnit:
-
-    def __init__(self, data: dict):
-        self.name = data["pool_name"]
-        self.id = data["pool_id"]
-        self.zone_list = data["zone_list"]
-        self.unit_num = data["unit_num"]
-        self.unit = UnitConfig.from_dict(data["unit_config"])
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return ResourcePoolWithUnit(data)
 
     def __str__(self):
         return model_str(self)
