@@ -33,6 +33,8 @@ import obshell.model.task as task
 import obshell.model.info as info
 import obshell.model.unit as unit
 import obshell.model.tenant as tenant
+import obshell.model.resource_pool as pool
+import obshell.model.recyclebin as recyclebin
 
 
 class OBShellHandleError(Exception):
@@ -1112,7 +1114,7 @@ class ClientV1(Client):
         req = self.create_request("/api/v1/tenants/overview", "GET", data={
             "limit": limit
         })
-        return self._handle_ret_from_content_request(req, tenant.TenantInfo)
+        return self._handle_ret_from_content_request(req, tenant.TenantOverView)
 
     # Aggregation function
 
