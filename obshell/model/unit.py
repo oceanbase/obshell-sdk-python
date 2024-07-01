@@ -18,8 +18,8 @@ from .info import model_str
 
 class UnitConfig:
     def __init__(self, data: dict):
-        self.gmt_create = data["gmt_create"]
-        self.gmt_modified = data["gmt_modified"]
+        self.gmt_create = data["create_time"]
+        self.gmt_modified = data["modify_time"]
         self.unit_config_id = data["unit_config_id"]
         self.name = data["name"]
         self.max_cpu = data["max_cpu"]

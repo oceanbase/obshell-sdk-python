@@ -79,10 +79,9 @@ class TenantOverView:
         self.mode = data["mode"]
         self.status = data["status"]
         self.locked = data["locked"]
-        self.info = data["info"]
         self.primary_zone = data["primary_zone"]
-        self.zonelist = data["zone_list"]
         self.locality = data["locality"]
+        self.in_recyclebin = data["in_recyclebin"]
 
     @classmethod
     def from_dict(cls, data: dict):

@@ -21,7 +21,8 @@ class RecyclebinTenantInfo:
     def __init__(self, data: dict):
         self.object_name = data["object_name"]
         self.original_tenant_name = data["original_tenant_name"]
-        self.original_tenant_id = data["original_tenant_id"]
+        self.can_undrop = data["can_undrop"]
+        self.can_purge = data["can_purge"]
 
     @classmethod
     def from_dict(cls, data: dict):
