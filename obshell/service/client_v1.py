@@ -953,7 +953,7 @@ class ClientV1(Client):
         data["memory_size"] = memory_size
         data["max_cpu"] = max_cpu
         if min_cpu is not None:
-            data["minCpu"] = min_cpu
+            data["min_cpu"] = min_cpu
         if max_iops is not None:
             data["max_iops"] = max_iops
         if min_iops is not None:
