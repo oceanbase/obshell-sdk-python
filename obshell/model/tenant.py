@@ -18,8 +18,28 @@ from .resource_pool import ResourcePoolWithUnit
 
 
 class ZoneParam:
+    """The properties of the zone and the replica on the zone.
+
+    Used by create_tenant/add_tenant_replica.
+
+    Attributes:
+        name (str): The name of the zone.
+        unit_config_name (str): 
+            The name of the unit config used for creating resource pool on the zone.
+        unit_num (str): The number of the unit on the zone.
+        replica_type (str, optional): The type of the replica, "FULL" or "READONLY".
+    """
 
     def __init__(self, zone_name: str, unit_config_name: str, unit_num: int, replica_type: str = None):
+        """Init the ZoneParam with the given parameters.
+
+        Args:
+            zone_name (str): The name of the zone.
+            unit_config_name (str):
+                The name of the unit config used for creating resource pool on the zone.
+            unit_num (str): The number of the unit on the zone.
+            replica_type (str, optional): The type of the replica, "FULL" or "READONLY".
+        """
         self.name = zone_name
         self.unit_config_name = unit_config_name
         self.unit_num = unit_num
@@ -28,6 +48,19 @@ class ZoneParam:
 
 
 class ModifyReplicaParam:
+    """The properties of the zone and the replica on the zone.
+
+    Used by modify_tenant_replcia.
+    The attributes are the targets you want to modify for
+    replica.
+
+    Attributes:
+        name (str): The name of the zone.
+        unit_config_name (str, optional): 
+            The name of the unit config used for creating resource pool on the zone.
+        unit_num (str, optional): The number of the unit on the zone.
+        replica_type (str, optional): The type of the replica, "FULL" or "READONLY".
+    """
 
     def __init__(self, zone_name: str, unit_config_name: str = None, unit_num: int = None, replica_type: str = None):
         if zone_name is not None:
@@ -41,6 +74,7 @@ class ModifyReplicaParam:
 
 
 class VariableInfo:
+
     def __init__(self, data: dict):
         self.name = data["name"]
         self.value = data["value"]
@@ -55,6 +89,7 @@ class VariableInfo:
 
 
 class ParameterInfo:
+
     def __init__(self, data: dict):
         self.name = data["name"]
         self.value = data["value"]
