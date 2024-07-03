@@ -24,6 +24,7 @@ class ZoneParam:
 
     Attributes:
         name (str): The name of the zone.
+
         unit_config_name (str): 
             The name of the unit config used for creating resource pool on the zone.
         unit_num (str): The number of the unit on the zone.
@@ -35,6 +36,7 @@ class ZoneParam:
 
         Args:
             zone_name (str): The name of the zone.
+
             unit_config_name (str):
                 The name of the unit config used for creating resource pool on the zone.
             unit_num (str): The number of the unit on the zone.
@@ -56,6 +58,7 @@ class ModifyReplicaParam:
 
     Attributes:
         name (str): The name of the zone.
+
         unit_config_name (str, optional): 
             The name of the unit config used for creating resource pool on the zone.
         unit_num (str, optional): The number of the unit on the zone.

@@ -1012,7 +1012,7 @@ class ClientV1(Client):
         return self._handle_ret_request(req, unit.UnitConfig)
 
     def create_tenant(
-            self, name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
+            self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
             root_password: str = None, charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Creates a tenant.
@@ -1028,7 +1028,7 @@ class ClientV1(Client):
         """
 
         data = {
-            "name": name,
+            "name": tenant_name,
             "zone_list": [zone.__dict__ for zone in zone_list],
         }
         options = ['mode', 'primary_zone', 'whitelist', 'root_password', 'charset',
@@ -1041,7 +1041,7 @@ class ClientV1(Client):
         return self.__handle_task_ret_request(req)
 
     def create_tenant_sync(
-            self, name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
+            self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
             primary_zone: str = "RANDOM", whitelist: str = None, root_password: str = None,
             charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
@@ -1080,7 +1080,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.create_tenant(
-            name, zone_list, mode, primary_zone, whitelist, root_password, charset, collation, read_only, comment, variables, parameters)
+            tenant_name, zone_list, mode, primary_zone, whitelist, root_password, charset, collation, read_only, comment, variables, parameters)
         return self.wait_dag_succeed(dag.generic_id)
 
     def drop_tenant(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
