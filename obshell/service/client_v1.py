@@ -83,7 +83,7 @@ class ClientV1(Client):
 
     def __init__(self, host: str,
                  port: int = 2886,
-                 auth=PasswordAuth(""),
+                 auth=None,
                  timeout=DEFAULT_REQUEST_TIMEOUT):
         """Initialize a new ClientV1 instance.
 
@@ -93,6 +93,8 @@ class ClientV1(Client):
             auth (Auth, optional): The authentication method. Defaults to PasswordAuth("").
             timeout (int, optional): The timeout of the request. Defaults to 600.
         """
+        if auth is None:
+            auth = PasswordAuth()
         super().__init__(host, port, auth=auth, timeout=timeout)
 
     def _set_password_candidate_auth(self, password: str):
