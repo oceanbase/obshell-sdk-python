@@ -1320,13 +1320,13 @@ class ClientV1(Client):
             f"/api/v1/tenant/{tenant_name}/parameter/{parameter}", "GET")
         return self._handle_ret_request(req, tenant.ParameterInfo)
 
-    def get_all_tenant_variables(self, tenant_name: str, limit: int = 25) -> List[tenant.VariableInfo]:
+    def get_tenant_all_variables(self, tenant_name: str, limit: int = 25) -> List[tenant.VariableInfo]:
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/variables", "GET", data={
             "limit": limit
         })
         return self._handle_ret_from_content_request(req, tenant.VariableInfo)
 
-    def get_all_tenant_parameters(self, tenant_name: str, limit: int = 25) -> List[tenant.ParameterInfo]:
+    def get_tenant_all_parameters(self, tenant_name: str, limit: int = 25) -> List[tenant.ParameterInfo]:
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/parameters", "GET", data={
             "limit": limit
         })
