@@ -16,7 +16,7 @@
 
 ## 安装
 ```
-pip install git://github.com/oceanbase/obshell-sdk-python.git
+pip install obshell
 ```
 
 ## 快速使用
