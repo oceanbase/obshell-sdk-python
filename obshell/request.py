@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import urllib
+
 
 class BaseRequest:
     def __init__(self, uri: str,
@@ -27,7 +29,7 @@ class BaseRequest:
             data = {}
         if headers is None:
             headers = {}
-        self.uri = uri
+        self.uri = urllib.parse.quote(uri)
         self.method = method
         self.host = host
         self.port = port
