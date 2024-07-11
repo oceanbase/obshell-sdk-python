@@ -1370,8 +1370,7 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: Error message return by OBShell server.
         """
-        req = self.create_request(f"/api/v1/recyclebin/tenant", "POST", data={
-            "object_or_original_name": object_or_original_name,
+        req = self.create_request(f"/api/v1/recyclebin/tenant/{object_or_original_name}", "POST", data={
             "new_name": new_name
         })
         return self._handle_ret_request(req)
