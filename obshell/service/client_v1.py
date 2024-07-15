@@ -1015,7 +1015,7 @@ class ClientV1(Client):
 
     def create_tenant(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
-            root_password: str = None, charset: str = None, collation: str = None, read_only: bool = False,
+            root_password: str = None, scenario: str = "oltp", charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Creates a tenant.
 
@@ -1034,7 +1034,7 @@ class ClientV1(Client):
             "zone_list": [zone.__dict__ for zone in zone_list],
         }
         options = ['mode', 'primary_zone', 'whitelist', 'root_password', 'charset',
-                   'collation', 'read_only', 'comment', 'variables', 'parameters']
+                   'collation', 'read_only', 'comment', 'variables', 'parameters', 'scenario']
         mydict = locals()
         for k, v in mydict.items():
             if k in options and v is not None:
@@ -1045,6 +1045,7 @@ class ClientV1(Client):
     def create_tenant_sync(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
             primary_zone: str = "RANDOM", whitelist: str = None, root_password: str = None,
+            scenario: str = "htap",
             charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Create a tenant synchronously.
@@ -1061,6 +1062,10 @@ class ClientV1(Client):
                 The primary zone of the tenant. Defaults to "RANDOM".
             whitelist (str, optional): 
                 The whitelist of the tenant. Defaults to None.
+            scenario:
+                The scenario of the tenant.
+                Can be one of 'express_oltp', 'complex_oltp', 'olap', 'htap', 'kv'.
+                Defaults to 'oltp'.
             root_password (str, optional): 
                 The root password of the tenant. Defaults to Empty.
             charset (str, optional): The charset of the tenant.
@@ -1082,7 +1087,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.create_tenant(
-            tenant_name, zone_list, mode, primary_zone, whitelist, root_password, charset, collation, read_only, comment, variables, parameters)
+            tenant_name, zone_list, mode, primary_zone, whitelist, root_password, scenario, charset, collation, read_only, comment, variables, parameters)
         return self.wait_dag_succeed(dag.generic_id)
 
     def drop_tenant(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
