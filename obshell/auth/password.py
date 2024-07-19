@@ -136,7 +136,7 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
         headers = {
             'auth': self.password,
             'ts': str(int(time.time()) + 5),
-            'uri': urlparse(req.url).path,
+            'uri': f"{urlparse(req.url).path}?{urlparse(req.url).query}",
             'keys': base64.b64encode(aes_key+aes_iv).decode('utf-8')
         }
         req.headers['X-OCS-Header'] = self.encrypt_header(headers)

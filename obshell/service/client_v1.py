@@ -161,9 +161,9 @@ class ClientV1(Client):
     def __handle_task_ret_request(self, req):
         return self._handle_ret_request(req, task.DagDetailDTO)
 
-    def create_request(self, uri: str, method: str, data=None, need_auth=True):
+    def create_request(self, uri: str, method: str, data=None, query_param=None, need_auth=True):
         return BaseRequest(uri, method,
-                           self.host, self.port,
+                           self.host, self.port, query_param=query_param,
                            data=data, need_auth=need_auth, timeout=self._timeout)
 
     # Function for OpenAPI
@@ -767,7 +767,7 @@ class ClientV1(Client):
             OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request(f"/api/v1/task/dag/{generic_id}", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_request(req, task.DagDetailDTO)
 
     def operate_dag(self, generic_id: str, operator: str) -> task.DagDetailDTO:
@@ -842,7 +842,7 @@ class ClientV1(Client):
             OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request(f"/api/v1/task/node/{generic_id}", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_request(req, task.NodeDetailDTO)
 
     def get_sub_task(self, generic_id: str) -> task.TaskDetailDTO:
@@ -859,32 +859,32 @@ class ClientV1(Client):
 
     def get_agent_last_maintenance_dag(self, show_detail=True) -> task.DagDetailDTO:
         req = self.create_request("/api/v1/task/dag/maintain/agent", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_request(req, task.DagDetailDTO)
 
     def get_agent_unfinished_dag(self, show_detail=True):
         req = self.create_request("/api/v1/task/dag/agent/unfinish", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
     def get_all_agent_last_maintenance_dag(self, show_detail=True):
         req = self.create_request("/api/v1/task/dag/maintain/agents", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
     def get_cluster_unfinished_dag(self, show_detail=True):
         req = self.create_request("/api/v1/task/dag/ob/unfinish", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
     def get_ob_last_maintenance_dag(self, show_detail=True) -> task.DagDetailDTO:
         req = self.create_request("/api/v1/task/dag/maintain/ob", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
     def get_unfinished_dags(self, show_detail=True):
         req = self.create_request("/api/v1/task/dag/unfinish", "GET",
-                                  data={"showDetail": show_detail})
+                                  query_param={"show_details": show_detail})
         return self._handle_ret_from_content_request(req, task.DagDetailDTO)
 
     def get_ob_info(self) -> info.ObInfo:
