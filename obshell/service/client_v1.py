@@ -1380,8 +1380,23 @@ class ClientV1(Client):
         })
         return self._handle_ret_request(req)
 
-    def purge_recyclebin_tenant(self, object_or_original_name: str) -> bool:
+    def purge_recyclebin_tenant(self, object_or_original_name: str) -> task.DagDetailDTO:
         """Purges the tenant in recyclebin.
+
+        Seealse purge_recyclebin_tenant_sync
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
+        req = self.create_request(
+            f"/api/v1/recyclebin/tenant/{object_or_original_name}", "DELETE")
+        return self.__handle_task_ret_request(req)
+
+    def purge_recyclebin_tenant_sync(self, object_or_original_name: str) -> bool:
+        """Purges the tenant in recyclebin synchronously.
 
         Args:
             object_or_tenant_name (str): The object name or tenant name in recyclebin.
@@ -1394,10 +1409,11 @@ class ClientV1(Client):
 
         Raises:
             OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
         """
-        req = self.create_request(
-            f"/api/v1/recyclebin/tenant/{object_or_original_name}", "DELETE")
-        return self._handle_ret_request(req)
+        dag = self.purge_recyclebin_tenant(object_or_original_name)
+        return self.wait_dag_succeed(dag.generic_id)
 
     def get_all_recyclebin_tenants(self, limit: int = 25) -> List[recyclebin.RecyclebinTenantInfo]:
         req = self.create_request("/api/v1/recyclebin/tenants", "GET", data={
