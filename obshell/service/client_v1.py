@@ -1090,7 +1090,7 @@ class ClientV1(Client):
             tenant_name, zone_list, mode, primary_zone, whitelist, root_password, scenario, charset, collation, read_only, comment, variables, parameters)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def drop_tenant(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
+    def drop_tenant(self, tenant_name: str, need_recycle: bool = False) -> task.DagDetailDTO:
         """Drops a tenant.
 
         Drops a tenant by name.
@@ -1103,20 +1103,18 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: error message return by OBShell server.
         """
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}", "DELETE", data={
-                                  "need_drop_resource_pool": need_drop_resource_pool, "need_recycle": need_recycle})
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}", "DELETE", data={"need_recycle": need_recycle})
         return self.__handle_task_ret_request(req)
 
-    def drop_tenant_sync(self, tenant_name: str, need_drop_resource_pool: bool = True, need_recycle: bool = False) -> task.DagDetailDTO:
+    def drop_tenant_sync(self, tenant_name: str, need_recycle: bool = False) -> task.DagDetailDTO:
         """Drops a tenant synchronously.
 
         Drops a tenant by name.
 
         Args:
             tenant_name (str): The name of the tenant.
-            need_drop_resource_pool (str, optional): Whether to drop the resource pool of the tenant. Defaults to True.
             need_recycle (str, optional): Whether to recycle the tenant's resource. Defaults to False.
-                need_drop_resource_pool is unavailable when need_recycle is True.
 
         Returns:
             Task detail as task.DagDetailDTO.
@@ -1127,7 +1125,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.drop_tenant(
-            tenant_name, need_drop_resource_pool, need_recycle)
+            tenant_name, need_recycle)
         return self.wait_dag_succeed(dag.generic_id)
 
     def lock_tenant(self, tenant_name: str) -> bool:
