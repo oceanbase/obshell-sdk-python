@@ -23,12 +23,15 @@ class BaseRequest:
                  protocol: str = "http",
                  need_auth: bool = False,
                  data: dict = None,
+                 query_param: dict = None,
                  headers: dict = None,
                  timeout: int = 100000):
         if data is None:
             data = {}
         if headers is None:
             headers = {}
+        if query_param is None:
+            query_param = {}
         self.uri = urllib.parse.quote(uri)
         self.method = method
         self.host = host
@@ -36,13 +39,14 @@ class BaseRequest:
         self.protocol = protocol
         self.need_auth = need_auth
         self.data = data
+        self.query_param = query_param
         self.original_data = data
         self.headers = headers
         self.timeout = timeout
 
     @property
     def url(self):
-        return f"{self.protocol}://{self.server}{self.uri}"
+        return f"{self.protocol}://{self.server}{self.uri}?{urllib.parse.urlencode(self.query_param)}"
 
     @property
     def server(self):
