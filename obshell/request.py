@@ -46,6 +46,8 @@ class BaseRequest:
 
     @property
     def url(self):
+        if len(self.query_param) == 0:
+            return f"{self.protocol}://{self.server}{self.uri}"
         return f"{self.protocol}://{self.server}{self.uri}?{urllib.parse.urlencode(self.query_param)}"
 
     @property

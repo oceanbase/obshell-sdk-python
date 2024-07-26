@@ -1329,10 +1329,10 @@ class ClientV1(Client):
         })
         return self._handle_ret_from_content_request(req, tenant.VariableInfo)
 
-    def get_tenant_all_parameters(self, tenant_name: str, limit: int = 25) -> List[tenant.ParameterInfo]:
+    def get_tenant_all_parameters(self, tenant_name: str, filter: str = "", limit: int = 25) -> List[tenant.ParameterInfo]:
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/parameters", "GET", data={
             "limit": limit
-        })
+        }, query_param={"filter": filter})
         return self._handle_ret_from_content_request(req, tenant.ParameterInfo)
 
     def get_tenant_info(self, tenant_name: str) -> tenant.TenantInfo:
