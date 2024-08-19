@@ -146,6 +146,8 @@ class ClientV1(Client):
                 return True
             else:
                 return cls.from_dict(resp.json()['data'])
+        elif resp.status_code == 204:
+            return None
         else:
             raise OBShellHandleError(resp.json()['error'])
 
@@ -1015,7 +1017,7 @@ class ClientV1(Client):
 
     def create_tenant(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
-            root_password: str = None, scenario: str = "oltp", charset: str = None, collation: str = None, read_only: bool = False,
+            root_password: str = None, scenario: str = None, charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Creates a tenant.
 
@@ -1045,7 +1047,7 @@ class ClientV1(Client):
     def create_tenant_sync(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
             primary_zone: str = "RANDOM", whitelist: str = None, root_password: str = None,
-            scenario: str = "htap",
+            scenario: str = None,
             charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Create a tenant synchronously.
@@ -1255,15 +1257,17 @@ class ClientV1(Client):
                 The zone list of the tenant where the replicas locate on.
 
         Returns:
-            Task detail as task.DagDetailDTO.
+            Task detail as task.DagDetailDTO. Return None if nothing has be changed.
 
         Raises:
             OBShellHandleError: error message return by OBShell server.
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.modify_tenant_replica(tenant_name, zone_list)
-        return self.wait_dag_succeed(dag.generic_id)
+        resp = self.modify_tenant_replica(tenant_name, zone_list)
+        if resp is not None:  # no content resp
+            return self.wait_dag_succeed(resp.generic_id)
+        return None
 
     def set_tenant_primary_zone(self, tenant_name: str, primary_zone: str) -> bool:
         """Sets the primary zone of the tenant.

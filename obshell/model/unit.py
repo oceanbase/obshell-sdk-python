@@ -18,16 +18,10 @@ from .info import model_str
 
 class UnitConfig:
     def __init__(self, data: dict):
-        self.gmt_create = data["create_time"]
-        self.gmt_modified = data["modify_time"]
-        self.unit_config_id = data["unit_config_id"]
-        self.name = data["name"]
-        self.max_cpu = data["max_cpu"]
-        self.min_cpu = data["min_cpu"]
-        self.memory_size = data["memory_size"]
-        self.log_disk_size = data["log_disk_size"]
-        self.max_iops = data["max_iops"]
-        self.min_iops = data["min_iops"]
+        for key in ["create_time", "modify_time", "unit_config_id", "name", "max_cpu",
+                    "min_cpu", "memory_size", "log_disk_size", "max_iops", "min_iops"]:
+            if key in data:
+                setattr(self, key, data[key])
 
     @classmethod
     def from_dict(cls, data: dict):

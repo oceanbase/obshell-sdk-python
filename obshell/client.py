@@ -80,7 +80,7 @@ class Client:
             self.__check_specified_auth()
 
         resp = self.__real_execute(req)
-        if resp.status_code != 200:
+        if resp.status_code >= 400:
             err = resp.json().get("error")
             if err is None:  # network error
                 raise Exception(
