@@ -148,8 +148,10 @@ class ClientV1(Client):
                 return cls.from_dict(resp.json()['data'])
         elif resp.status_code == 204:
             return None
-        else:
+        elif resp.status_code >= 400:
             raise OBShellHandleError(resp.json()['error'])
+        else:
+            raise Exception(f"Unknown error: {resp.json()}")
 
     def _get_failed_dag_last_log(self, dag: task.DagDetailDTO):
         nodes = dag.nodes
@@ -1115,7 +1117,7 @@ class ClientV1(Client):
         Drops a tenant by name.
 
         Args:
-            tenant_name (str): The name of the tenant.
+            tenant_name (str): The name of the tenant. Return None if tenant not exist.
             need_recycle (str, optional): Whether to recycle the tenant's resource. Defaults to False.
 
         Returns:
@@ -1126,8 +1128,9 @@ class ClientV1(Client):
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.drop_tenant(
-            tenant_name, need_recycle)
+        dag = self.drop_tenant(tenant_name, need_recycle)
+        if dag is None:
+            return None
         return self.wait_dag_succeed(dag.generic_id)
 
     def lock_tenant(self, tenant_name: str) -> bool:
@@ -1343,17 +1346,13 @@ class ClientV1(Client):
         req = self.create_request(f"/api/v1/tenant/{tenant_name}", "GET")
         return self._handle_ret_request(req, tenant.TenantInfo)
 
-    def get_all_tenants(self, limit: int = 25) -> List[tenant.TenantOverView]:
-        req = self.create_request("/api/v1/tenants/overview", "GET", data={
-            "limit": limit
-        })
+    def get_all_tenants(self) -> List[tenant.TenantOverView]:
+        req = self.create_request("/api/v1/tenants/overview", "GET")
         return self._handle_ret_from_content_request(req, tenant.TenantOverView)
 
     # Pool API function
-    def get_all_resource_pools(self, limit: int = 25) -> List[pool.ResourcePoolInfo]:
-        req = self.create_request("/api/v1/resource-pools", "GET", data={
-            "limit": limit
-        })
+    def get_all_resource_pools(self) -> List[pool.ResourcePoolInfo]:
+        req = self.create_request("/api/v1/resource-pools", "GET")
         return self._handle_ret_from_content_request(req, pool.ResourcePoolInfo)
 
     def drop_resource_pool(self, pool_name: str):
@@ -1415,12 +1414,12 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.purge_recyclebin_tenant(object_or_original_name)
+        if dag is None:
+            return None
         return self.wait_dag_succeed(dag.generic_id)
 
-    def get_all_recyclebin_tenants(self, limit: int = 25) -> List[recyclebin.RecyclebinTenantInfo]:
-        req = self.create_request("/api/v1/recyclebin/tenants", "GET", data={
-            "limit": limit
-        })
+    def get_all_recyclebin_tenants(self) -> List[recyclebin.RecyclebinTenantInfo]:
+        req = self.create_request("/api/v1/recyclebin/tenants", "GET")
         return self._handle_ret_from_content_request(req, recyclebin.RecyclebinTenantInfo)
 
     # Aggregation function
