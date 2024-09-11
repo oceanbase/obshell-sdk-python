@@ -18,6 +18,7 @@ import base64
 import os
 import requests
 import copy
+from typing import List
 
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.PublicKey import RSA
@@ -30,6 +31,10 @@ from obshell.request import BaseRequest
 from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
 import obshell.model.info as info
+import obshell.model.unit as unit
+import obshell.model.tenant as tenant
+import obshell.model.resource_pool as pool
+import obshell.model.recyclebin as recyclebin
 
 
 class OBShellHandleError(Exception):
@@ -141,8 +146,12 @@ class ClientV1(Client):
                 return True
             else:
                 return cls.from_dict(resp.json()['data'])
-        else:
+        elif resp.status_code == 204:
+            return None
+        elif resp.status_code >= 400:
             raise OBShellHandleError(resp.json()['error'])
+        else:
+            raise Exception(f"Unknown error: {resp.json()}")
 
     def _get_failed_dag_last_log(self, dag: task.DagDetailDTO):
         nodes = dag.nodes
@@ -939,7 +948,493 @@ class ClientV1(Client):
                 else:
                     raise e
 
+    # Tenant API function
+    def create_resource_unit_config(
+            self, unit_config_name: str, memory_size: str, max_cpu: float,
+            min_cpu: float = None, max_iops: int = None, min_iops: int = None,
+            log_disk_size: str = None) -> bool:
+        """Creates a resource unit config.
+
+        Args:
+            unit_config_name (str): The name of the resource unit config.
+            memory_size (str): The memory size of the resource unit config.
+            max_cpu (float): The max cpu of the resource unit config, should be greater than 1.
+            min_cpu (float, optional): 
+                The min cpu of the resource unit config, should be greater than 1.
+                If not set, the min cpu will be set to the max cpu.
+            max_iops (int, optional): The max iops of the resource unit config.
+                If not set, the max iops will be set default value by observer.
+            min_iops (int, optional): The min iops of the resource unit config.
+                If not set, the min iops will be set default value by observer.
+            log_disk_size (str, optional): The log disk size of the resource unit config.
+                If not set, the log disk size will be set default value by observer.
+
+        Returns:
+            bool: True if success.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
+        data = {}
+        data["name"] = unit_config_name
+        data["memory_size"] = memory_size
+        data["max_cpu"] = max_cpu
+        if min_cpu is not None:
+            data["min_cpu"] = min_cpu
+        if max_iops is not None:
+            data["max_iops"] = max_iops
+        if min_iops is not None:
+            data["min_iops"] = min_iops
+        if log_disk_size is not None:
+            data["log_disk_size"] = log_disk_size
+        req = self.create_request("/api/v1/unit/config", "POST", data=data)
+        return self._handle_ret_request(req)
+
+    def drop_resource_unit_config(self, unit_config_name: str) -> bool:
+        """Drops a existing resource unit config.
+
+        Args:
+            unit_config_name (str): The name of the resource unit config.
+
+        Returns:
+            bool: True if success.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
+        req = self.create_request(
+            f"/api/v1/unit/config/{unit_config_name}", "DELETE")
+        return self._handle_ret_request(req)
+
+    def get_all_resource_unit_configs(self) -> List[unit.UnitConfig]:
+        """Gets all exsiting resource unit configs."""
+        req = self.create_request("/api/v1/units/config", "GET")
+        return self._handle_ret_from_content_request(req, unit.UnitConfig)
+
+    def get_resource_unit_config(self, unit_config_name: str) -> unit.UnitConfig:
+        """Gets a specific resource uint config by name"""
+        req = self.create_request(
+            f"/api/v1/unit/config/{unit_config_name}", "GET")
+        return self._handle_ret_request(req, unit.UnitConfig)
+
+    def create_tenant(
+            self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
+            root_password: str = None, scenario: str = None, charset: str = None, collation: str = None, read_only: bool = False,
+            comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
+        """Creates a tenant.
+
+        Return as soon as request successfully.
+        You can use wait_dag_succeed to wait for the create tenant task to succeed or
+        use create_tenant_sync to upgrade synchronously instead.
+
+        Seealso create_tenant_sync.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+
+        data = {
+            "name": tenant_name,
+            "zone_list": [zone.__dict__ for zone in zone_list],
+        }
+        options = ['mode', 'primary_zone', 'whitelist', 'root_password', 'charset',
+                   'collation', 'read_only', 'comment', 'variables', 'parameters', 'scenario']
+        mydict = locals()
+        for k, v in mydict.items():
+            if k in options and v is not None:
+                data[k] = v
+        req = self.create_request("/api/v1/tenant", "POST", data=data)
+        return self.__handle_task_ret_request(req)
+
+    def create_tenant_sync(
+            self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
+            primary_zone: str = "RANDOM", whitelist: str = None, root_password: str = None,
+            scenario: str = None,
+            charset: str = None, collation: str = None, read_only: bool = False,
+            comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
+        """Create a tenant synchronously.
+
+        Creates a tenant with the specified name and zone list.
+
+        Args:
+            name (str): The name of the tenant.
+            zone_list (List[ZoneParam]): 
+                The zone list of the tenant, include replica configs and unit configs.
+            mode (str, optional): 
+                The mode of the tenant, "MYSQL" or "ORACLE". Defaults to 'MYSQL'.
+            primary_zone (str, optional): 
+                The primary zone of the tenant. Defaults to "RANDOM".
+            whitelist (str, optional): 
+                The whitelist of the tenant. Defaults to None.
+            scenario:
+                The scenario of the tenant.
+                Can be one of 'express_oltp', 'complex_oltp', 'olap', 'htap', 'kv'.
+                Defaults to 'oltp'.
+            root_password (str, optional): 
+                The root password of the tenant. Defaults to Empty.
+            charset (str, optional): The charset of the tenant.
+                If not set, the charset will be set to default value by observer.
+            collation (str, optional): The collation of the tenant.
+                If not set, the collation will be set to default value by observer.
+            read_only (bool, optional): 
+                Whether the tenant is read only. Defaults to False.
+            comment (str, optional): The comment of the tenant.
+            variables (dict, optional): The variables of the tenant.
+            parameters (dict, optional): The parameters of the tenant.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.create_tenant(
+            tenant_name, zone_list, mode, primary_zone, whitelist, root_password, scenario, charset, collation, read_only, comment, variables, parameters)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def drop_tenant(self, tenant_name: str, need_recycle: bool = False) -> task.DagDetailDTO:
+        """Drops a tenant.
+
+        Drops a tenant by name.
+        Return as soon as request successfully.
+        You can use wait_dag_succeed to wait for the drop tenant task to succeed or
+        use drop_tenant_sync to upgrade synchronously instead.
+
+        Seealso drop_tenant_sync.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}", "DELETE", data={"need_recycle": need_recycle})
+        return self.__handle_task_ret_request(req)
+
+    def drop_tenant_sync(self, tenant_name: str, need_recycle: bool = False) -> task.DagDetailDTO:
+        """Drops a tenant synchronously.
+
+        Drops a tenant by name.
+
+        Args:
+            tenant_name (str): The name of the tenant. Return None if tenant not exist.
+            need_recycle (str, optional): Whether to recycle the tenant's resource. Defaults to False.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.drop_tenant(tenant_name, need_recycle)
+        if dag is None:
+            return None
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def lock_tenant(self, tenant_name: str) -> bool:
+        """Locks the tenant.
+
+        Locking the tenant to make it inaccessible.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/lock", "POST")
+        return self._handle_ret_request(req)
+
+    def unlock_tenant(self, tenant_name: str) -> bool:
+        """Unlocks the tenant."""
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/lock", "DELETE")
+        return self._handle_ret_request(req)
+
+    def rename_tenant(self, tenant_name: str, new_name: str) -> task.DagDetailDTO:
+        """Renames the tenant."""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/name", "PUT", data={
+            "new_name": new_name
+        })
+        return self._handle_ret_request(req)
+
+    def add_tenant_replica(self, tenant_name: str, zone_list: List[tenant.ZoneParam]) -> task.DagDetailDTO:
+        """Adds tenant replicas.
+
+        Add replicas on specified zones to the tenant.
+        You can use wait_dag_succeed to wait for the add tenant replica task to succeed or
+        use add_tenant_replica_sync to add synchronously instead.
+
+        Seealso add_tenant_replica_sync.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "POST", data={
+            "zone_list": [zone.__dict__ for zone in zone_list]
+        })
+        return self.__handle_task_ret_request(req)
+
+    def add_tenant_replica_sync(self, tenant_name: str, zone_list: List[tenant.ZoneParam]) -> task.DagDetailDTO:
+        """Adds tenant replicas synchronously.
+
+        Adds replicas on specified zones to the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            zone_list(ZoneParam): 
+                The zone list of the tenant, include replica configs and unit configs.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.add_tenant_replica(tenant_name, zone_list)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_tenant_replica(self, tenant_name: str, zones: List[str]) -> task.DagDetailDTO:
+        """Deletes tenant replicas.
+
+        Delete replicas on specified zones from the tenant.
+        You can use wait_dag_succeed to wait for the delete tenant replica task to succeed or
+        use delete_tenant_replica_sync to delete synchronously instead.
+
+        Seealso delete_tenant_replica_sync.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "DELETE", data={
+            "zones": zones
+        })
+        return self.__handle_task_ret_request(req)
+
+    def delete_tenant_replica_sync(self, tenant_name: str, zones: List[str]) -> task.DagDetailDTO:
+        """Deletes tenant replicas synchronously.
+
+        Deletes replicas on specified zones from the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            zones (List[str]): 
+                The zone list of the tenant where the replicas locate on.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.delete_tenant_replica(tenant_name, zones)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def modify_tenant_replica(self, tenant_name: str, zone_list: List[tenant.ModifyReplicaParam]) -> task.DagDetailDTO:
+        """Modifies tenant replicas.
+
+        Modify replicas' properties on specified zones of the tenant,
+        include unit config, unit num and replica type.
+        You can use wait_dag_succeed to wait for the modify tenant replica task to succeed or
+        use modify_tenant_replica_sync to modify synchronously instead.
+
+        Seealso modify_tenant_replica_sync.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/replicas", "PATCH", data={
+            "zone_list": [zone.__dict__ for zone in zone_list]
+        })
+        return self.__handle_task_ret_request(req)
+
+    def modify_tenant_replica_sync(self, tenant_name: str, zone_list: List[tenant.ModifyReplicaParam]) -> task.DagDetailDTO:
+        """Modifies tenant replicas synchronously.
+
+        Modifies replicas' properties on specified zones of the tenant,
+        include unit config, unit num and replica type.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            zone_list (List[ModifyReplicaParam]): 
+                The zone list of the tenant where the replicas locate on.
+
+        Returns:
+            Task detail as task.DagDetailDTO. Return None if nothing has be changed.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        resp = self.modify_tenant_replica(tenant_name, zone_list)
+        if resp is not None:  # no content resp
+            return self.wait_dag_succeed(resp.generic_id)
+        return None
+
+    def set_tenant_primary_zone_sync(self, tenant_name: str, primary_zone: str) -> task.DagDetailDTO:
+        """Sets the primary zone of the tenant synchronously.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            primary_zone (str): The primary zone of the tenant. For example:
+                "zone1;zone2,zone3".
+        """
+        resp = self.set_tenant_primary_zone(tenant_name, primary_zone)
+        if resp is not None:  # no content resp
+            return self.wait_dag_succeed(resp.generic_id)
+        return None
+
+    def set_tenant_primary_zone(self, tenant_name: str, primary_zone: str) -> task.DagDetailDTO:
+        """Sets the primary zone of the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            primary_zone (str): The primary zone of the tenant. For example:
+                "zone1;zone2,zone3".
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/primary-zone", "PUT", data={
+            "primary_zone": primary_zone
+        })
+        return self.__handle_task_ret_request(req)
+
+    def set_tenant_whitelist(self, tenant_name: str, whitelist: str) -> bool:
+        """Sets the access whitelist of the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            whitelist (str): The access whitelist of the tenant. For example:
+                "%".
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/whitelist", "PUT", data={
+            "whitelist": whitelist
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_root_password(self, tenant_name: str, new_password: str, old_password: str = "") -> bool:
+        """Sets the root password of the tenant."""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/password", "PUT", data={
+            "old_password": old_password,
+            "new_password": new_password
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_variables(self, tenant_name: str, variables: dict) -> bool:
+        """Sets the global variables of the tenant."""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/variables", "PUT", data={
+            "variables": variables
+        })
+        return self._handle_ret_request(req)
+
+    def set_tenant_parameters(self, tenant_name: str, parameters: dict) -> bool:
+        """Sets the global parameters of the tenant."""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/parameters", "PUT", data={
+            "parameters": parameters
+        })
+        return self._handle_ret_request(req)
+
+    def get_tenant_variable(self, tenant_name: str, variable: str) -> tenant.VariableInfo:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/variable/{variable}", "GET")
+        return self._handle_ret_request(req, tenant.VariableInfo)
+
+    def get_tenant_parameter(self, tenant_name: str, parameter: str) -> tenant.ParameterInfo:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/parameter/{parameter}", "GET")
+        return self._handle_ret_request(req, tenant.ParameterInfo)
+
+    def get_tenant_variables(self, tenant_name: str, filter: str = "%") -> List[tenant.VariableInfo]:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/variables", "GET", query_param={"filter": filter})
+        return self._handle_ret_from_content_request(req, tenant.VariableInfo)
+
+    def get_tenant_parameters(self, tenant_name: str, filter: str = "%") -> List[tenant.ParameterInfo]:
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/parameters", "GET", query_param={"filter": filter})
+        return self._handle_ret_from_content_request(req, tenant.ParameterInfo)
+
+    def get_tenant_info(self, tenant_name: str) -> tenant.TenantInfo:
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}", "GET")
+        return self._handle_ret_request(req, tenant.TenantInfo)
+
+    def get_all_tenants(self) -> List[tenant.TenantOverView]:
+        req = self.create_request("/api/v1/tenants/overview", "GET")
+        return self._handle_ret_from_content_request(req, tenant.TenantOverView)
+
+    # Pool API function
+    def get_all_resource_pools(self) -> List[pool.ResourcePoolInfo]:
+        req = self.create_request("/api/v1/resource-pools", "GET")
+        return self._handle_ret_from_content_request(req, pool.ResourcePoolInfo)
+
+    def drop_resource_pool(self, pool_name: str):
+        req = self.create_request(
+            f"/api/v1/resource-pool/{pool_name}", "DELETE")
+        return self._handle_ret_request(req)
+
+    # Recyclebin API function
+    def flashback_recyclebin_tenant(self, object_or_original_name: str, new_name: str = None) -> bool:
+        """Restores the tenant from recyclebin.
+
+        Args:
+            object_or_original_name (str): The object name or original name
+                of the tenant in recyclebin.
+            new_name (str, optional): The new name of the tenant. Defaults to None.
+                when new_name is None, the tenant will be restored with its original name.
+
+        Returns:
+            bool: True if success.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
+        req = self.create_request(f"/api/v1/recyclebin/tenant/{object_or_original_name}", "POST", data={
+            "new_name": new_name
+        })
+        return self._handle_ret_request(req)
+
+    def purge_recyclebin_tenant(self, object_or_original_name: str) -> task.DagDetailDTO:
+        """Purges the tenant in recyclebin.
+
+        Seealse purge_recyclebin_tenant_sync
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+        """
+        req = self.create_request(
+            f"/api/v1/recyclebin/tenant/{object_or_original_name}", "DELETE")
+        return self.__handle_task_ret_request(req)
+
+    def purge_recyclebin_tenant_sync(self, object_or_original_name: str) -> bool:
+        """Purges the tenant in recyclebin synchronously.
+
+        Args:
+            object_or_tenant_name (str): The object name or tenant name in recyclebin.
+                When using original name, if there are multiple tenants with the same
+                original name, the latest one will be purged.
+                The resource of the tenant won't be recycled.
+
+        Returns:
+            bool: True if success.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.purge_recyclebin_tenant(object_or_original_name)
+        if dag is None:
+            return None
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def get_all_recyclebin_tenants(self) -> List[recyclebin.RecyclebinTenantInfo]:
+        req = self.create_request("/api/v1/recyclebin/tenants", "GET")
+        return self._handle_ret_from_content_request(req, recyclebin.RecyclebinTenantInfo)
+
     # Aggregation function
+
     def agg_clear_uninitialized_agent(self):
         """Clears the agent in a uninitialized cluster.
 
@@ -985,7 +1480,7 @@ class ClientV1(Client):
         Args:
             servers_with_configs (list): The dict of the server and its configurations.
                 The configuration should include the zone of the server.
-                Example: {'11.11.11.1:2886': {"zone": "zone1", "memory_limit": "18G", 
+                Example: {'11.11.11.1:2886': {"zone": "zone1", "memory_limit": "18G",
                 "system_memory": "4G", "log_disk_size": "24G"}, ...}
             cluster_name (str): The name of the obcluster.
             cluster_id (int): The id of the obcluster.

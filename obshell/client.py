@@ -80,7 +80,7 @@ class Client:
             self.__check_specified_auth()
 
         resp = self.__real_execute(req)
-        if resp.status_code != 200:
+        if resp.status_code >= 400:
             err = resp.json().get("error")
             if err is None:  # network error
                 raise Exception(
@@ -88,6 +88,7 @@ class Client:
             errcode = err.get("code")
             if errcode == DECRYPT_ERROR_CODE:
                 self._auth.reset_method()
+                self.__real_execute(req)
             elif err == INCOMPATIBLE_ERROR_CODE:
                 return resp
             else:
