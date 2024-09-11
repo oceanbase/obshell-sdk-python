@@ -97,7 +97,7 @@ class Client:
                         return ret
                     if self._auth.get_version() > AuthVersion.V2:
                         return resp
-                    self._reset_auth()  # obshell-sdk-go is wrong
+                    self._reset_auth()
             return self.__real_execute(req)
         return resp
 
