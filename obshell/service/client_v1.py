@@ -1272,7 +1272,20 @@ class ClientV1(Client):
             return self.wait_dag_succeed(resp.generic_id)
         return None
 
-    def set_tenant_primary_zone(self, tenant_name: str, primary_zone: str) -> bool:
+    def set_tenant_primary_zone_sync(self, tenant_name: str, primary_zone: str) -> task.DagDetailDTO:
+        """Sets the primary zone of the tenant synchronously.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            primary_zone (str): The primary zone of the tenant. For example:
+                "zone1;zone2,zone3".
+        """
+        resp = self.set_tenant_primary_zone(tenant_name, primary_zone)
+        if resp is not None:  # no content resp
+            return self.wait_dag_succeed(resp.generic_id)
+        return None
+
+    def set_tenant_primary_zone(self, tenant_name: str, primary_zone: str) -> task.DagDetailDTO:
         """Sets the primary zone of the tenant.
 
         Args:
@@ -1283,7 +1296,7 @@ class ClientV1(Client):
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/primary-zone", "PUT", data={
             "primary_zone": primary_zone
         })
-        return self._handle_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def set_tenant_whitelist(self, tenant_name: str, whitelist: str) -> bool:
         """Sets the access whitelist of the tenant.
