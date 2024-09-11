@@ -98,8 +98,8 @@ class Client:
                         return ret
                     if self._auth.get_version() > AuthVersion.V2:
                         return resp
-                    self.__reset_auth()  # obshell-sdk-go is wrong
-                    self.__real_execute(req)
+                    self._reset_auth()
+            return self.__real_execute(req)
         return resp
 
     def _get_auth(self):
@@ -128,7 +128,7 @@ class Client:
             agent = get_info(f"{self.host}:{self.port}")
             if (agent.version == OBShellVersion.V422 or
                     agent.version == OBShellVersion.V423):
-                self.__reset_auth()  # to confirm the pk and auth version is right
+                self._reset_auth()  # to confirm the pk and auth version is right
                 resp = self.__real_execute(req)
                 if resp.status_code == 200:
                     return resp
@@ -157,7 +157,7 @@ class Client:
                 raise Exception((f"Auth version {auth.get_version()} "
                                  f"is not supported by agent {agent.version}"))
 
-    def __reset_auth(self):
+    def _reset_auth(self):
         if not self._auth.is_auto_select_version:
             self._auth.reset_method()
         else:
