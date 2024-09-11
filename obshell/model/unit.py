@@ -17,6 +17,7 @@ from .info import model_str
 
 
 class UnitConfig:
+
     def __init__(self, data: dict):
         for key in ["create_time", "modify_time", "unit_config_id", "name", "max_cpu",
                     "min_cpu", "memory_size", "log_disk_size", "max_iops", "min_iops"]:
