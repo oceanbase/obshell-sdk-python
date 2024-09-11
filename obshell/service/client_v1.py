@@ -967,6 +967,7 @@ class ClientV1(Client):
             need_remove = True
         if need_remove:
             self.remove_sync(self.host, self.port)
+            self._reset_auth()
         return True
 
     def agg_create_cluster(
