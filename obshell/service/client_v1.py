@@ -27,6 +27,7 @@ from obshell.info import get_info, get_public_key
 from obshell.client import Client
 from obshell.auth.base import OBShellVersion, AuthType
 from obshell.auth.password import PasswordAuth
+from obshell.model import ob
 from obshell.request import BaseRequest
 from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
@@ -1526,3 +1527,681 @@ class ClientV1(Client):
             if clear_if_failed:
                 self.agg_clear_uninitialized_agent()
             raise e
+        
+    def _gen_cluster_backup_config(
+        self,
+        backup_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None, # Mandatory or Optional, default Optional
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        data = {}
+        if backup_base_uri is not None:
+            data['backup_base_uri'] = backup_base_uri
+        if log_archive_concurrency != -1:
+            data['log_archive_concurrency'] = log_archive_concurrency
+        if binding is not None:
+            data['binding'] = binding
+        if ha_low_thread_score != -1:
+            data['ha_low_thread_score'] = ha_low_thread_score
+        if piece_switch_interval is not None:
+            data['piece_switch_interval'] = piece_switch_interval
+        if archive_lag_target is not None:
+            data['archive_lag_target'] = archive_lag_target
+        if delete_policy is not None or delete_recovery_window is not None:
+            data['delete_policy'] = {
+                'policy': delete_policy,
+                'recovery_window': delete_recovery_window
+            }
+        return data
+
+    def post_cluster_backup_config(
+        self,
+        backup_base_uri: str,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Configures the backup of the obcluster.
+
+        Configures the backup of the obcluster with the specified configurations.
+
+        Args:
+            backup_base_uri (str): The base URI where backups are stored.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        data = self._gen_cluster_backup_config(
+            backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        req = self.create_request("/api/v1/obcluster/backup/config", "POST", data)
+        return self.__handle_task_ret_request(req)
+    
+    def post_cluster_backup_config_sync(
+        self,
+        backup_base_uri: str,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Configures the backup of the obcluster.
+
+        Configures the backup of the obcluster with the specified configurations.
+        Wait for the task to succeed.
+        
+        Args:
+            backup_base_uri (str): The base URI where backups are stored.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+
+        """
+        dag = self.post_cluster_backup_config(
+            backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        return self.wait_dag_succeed(dag.generic_id)
+    
+    def patch_cluster_backup_config(
+        self,
+        backup_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None, 
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Updates the backup configuration of the obcluster.
+
+        Updates the backup configuration of the obcluster with the specified configurations.
+
+        Args:
+            backup_base_uri (str, optional): The base URI where backups are stored.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        data = self._gen_cluster_backup_config(
+            backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        req = self.create_request("/api/v1/obcluster/backup/config", "PATCH", data)
+        return self.__handle_task_ret_request(req)       
+    
+    def patch_cluster_backup_config_sync(
+        self,
+        backup_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None, 
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Updates the backup configuration of the obcluster.
+
+        Updates the backup configuration of the obcluster with the specified configurations.
+
+        Args:
+            backup_base_uri (str, optional): The base URI where backups are stored.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+ 
+        dag = self.patch_cluster_backup_config(
+            backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def _gen_tenant_backup_config(
+        self,
+        data_base_uri: str = None,
+        archive_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None, # Mandatory or Optional, default Optional
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        data = {}
+        if data_base_uri is not None:
+            data['data_base_uri'] = data_base_uri
+        if archive_base_uri is not None:
+            data['archive_base_uri'] = archive_base_uri
+        if log_archive_concurrency != -1:
+            data['log_archive_concurrency'] = log_archive_concurrency
+        if binding is not None:
+            data['binding'] = binding
+        if ha_low_thread_score != -1:
+            data['ha_low_thread_score'] = ha_low_thread_score
+        if piece_switch_interval is not None:
+            data['piece_switch_interval'] = piece_switch_interval
+        if archive_lag_target is not None:
+            data['archive_lag_target'] = archive_lag_target
+        if delete_policy is not None or delete_recovery_window is not None :
+            data['delete_policy'] = {
+                'policy': delete_policy,
+                'recovery_window': delete_recovery_window
+            }
+        return data
+    
+    def post_tenant_backup_config(
+        self,
+        tenant_name: str,
+        data_base_uri: str,
+        archive_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Configures the backup of the tenant.
+
+        Configures the backup of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The identifier for the tenant.
+            data_base_uri (str): The URI pointing to the location of data backups.
+            archive_base_uri (str, optional): The URI for archive logs storage, if different from the main backup path.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        data = self._gen_tenant_backup_config(
+            data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/config", "POST", data)
+        return self.__handle_task_ret_request(req) 
+    
+    def post_tenant_backup_config_sync(
+        self,
+        tenant_name: str,
+        data_base_uri: str,
+        archive_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Configures the backup of the tenant.
+
+        Configures the backup of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            data_base_uri (str): The URI pointing to the location of data backups.
+            archive_base_uri (str, optional): The URI for archive logs storage, if different from the main backup path.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        dag = self.post_tenant_backup_config(
+            tenant_name, data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        return self.wait_dag_succeed(dag.generic_id)
+    
+    def patch_tenant_backup_config(
+        self,
+        tenant_name: str,
+        data_base_uri: str = None,
+        archive_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Updates the backup configuration of the tenant.
+
+        Updates the backup configuration of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            data_base_uri (str): The URI pointing to the location of data backups.
+            archive_base_uri (str, optional): The URI for archive logs storage, if different from the main backup path.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        data = self._gen_tenant_backup_config(
+            data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/config", "PATCH", data)
+        return self.__handle_task_ret_request(req)
+    
+    def patch_tenant_backup_config_sync(
+        self,
+        tenant_name: str,
+        data_base_uri: str = None,
+        archive_base_uri: str = None,
+        log_archive_concurrency: int = -1,
+        binding: str = None,
+        ha_low_thread_score: int = -1,
+        piece_switch_interval: str = None,
+        archive_lag_target: str = None,
+        delete_policy: str = None,
+        delete_recovery_window: str = None,
+    ):
+        """Updates the backup configuration of the tenant.
+
+        Updates the backup configuration of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            data_base_uri (str): The URI pointing to the location of data backups.
+            archive_base_uri (str, optional): The URI for archive logs storage, if different from the main backup path.
+            log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
+            binding (str, optional): Determines the binding mode between archiving and business operations ('Optional' or 'Mandatory').
+            ha_low_thread_score (int, optional): Adjusts the thread priority score for high availability tasks.
+            piece_switch_interval (str, optional): Defines the interval for switching backup pieces.
+            archive_lag_target (str, optional): Sets the target lag time for log archiving processes.
+            delete_policy (str, optional): Policy for deletion, limited to 'default'.
+            delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
+        """
+        dag = self.patch_tenant_backup_config(
+            tenant_name, data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
+            piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
+        )
+        return self.wait_dag_succeed(dag.generic_id)
+        
+    def start_cluster_backup(
+        self,
+        mode: str = None,
+        plus_archive: bool = None,
+        encryption: str = None,
+    ):
+        """Starts the backup of the obcluster.
+
+        Starts the backup of the obcluster with the specified configurations.
+
+        Args:
+            mode (str, optional): Specifies the type of backup operation to perform. Supported values are 'full' and 'incremental'.
+            plus_archive (bool, optional): Flag indicating whether to include archive logs within the backup process for a combined data and log backup.
+            encryption (str, optional): The encryption passphrase used to secure the backup once completed.
+        """
+        data = {}
+        if mode is not None:
+            data['mode'] = mode
+        else:
+            data['mode'] = ""
+        if plus_archive is not None:
+            data['plus_archive'] = plus_archive
+        if encryption is not None:
+            data['encryption'] = encryption
+        req = self.create_request("/api/v1/obcluster/backup", "POST", data)
+        return self.__handle_task_ret_request(req)
+    
+    def start_cluster_backup_sync(
+        self,
+        mode: str = None,
+        plus_archive: bool = None,
+        encryption: str = None,
+    ):
+        """Starts the backup of the obcluster.
+
+        Starts the backup of the obcluster with the specified configurations.
+
+        Args:
+            mode (str, optional): Specifies the type of backup operation to perform. Supported values are 'full' and 'incremental'.
+            plus_archive (bool, optional): Flag indicating whether to include archive logs within the backup process for a combined data and log backup.
+            encryption (str, optional): The encryption passphrase used to secure the backup once completed.
+        """
+        dag = self.start_cluster_backup(mode, plus_archive, encryption)
+        return self.wait_dag_succeed(dag.generic_id) 
+        
+    
+    def start_tenant_backup(
+        self,
+        tenant_name: str,
+        mode: str = None,
+        plus_archive: bool = None,
+        encryption: str = None,
+    ):
+        """Starts the backup of the tenant.
+
+        Starts the backup of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            mode (str, optional): The backup mode.  Supported values are 'full' and 'incremental'.
+            plus_archive (bool, optional): Whether to add log archive together with data backup.
+            encryption (str, optional): The encryption of the backup.
+        """
+        data = {}
+        if mode is not None:
+            data['mode'] = mode
+        else:
+            data['mode'] = ""
+        if plus_archive is not None:
+            data['plus_archive'] = plus_archive
+        if encryption is not None:
+            data['encryption'] = encryption
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup", "POST", data)
+        return self.__handle_task_ret_request(req)
+    
+    def start_tenant_backup_sync(
+        self,
+        tenant_name: str,
+        mode: str = None,
+        plus_archive: bool = None,
+        encryption: str = None,
+    ):
+        """Starts the backup of the tenant.
+
+        Starts the backup of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            mode (str, optional): The backup mode.  Supported values are 'full' and 'incremental'.
+            plus_archive (bool, optional): Whether to add log archive together with data backup.
+            encryption (str, optional): The encryption of the backup.
+        """
+        dag = self.start_tenant_backup(tenant_name, mode, plus_archive, encryption)
+        return self.wait_dag_succeed(dag.generic_id)
+        
+    def patch_cluster_backup_status(
+        self,
+        status: str = None,
+    ):
+        """Updates the backup status of the obcluster.
+
+        Updates the backup status of the obcluster with the specified status.
+
+        Args:
+            status (str, optional): The backup status. Supported value is 'canceled'. Default is 'canceled'.
+        """
+        data = {}
+        if status is not None:
+            data['status'] = status
+        else:
+            data['status'] = ""
+        req = self.create_request("/api/v1/obcluster/backup", "PATCH", data)
+        return self._handle_ret_request(req)
+
+    def patch_tenant_backup_status(
+        self,
+        tenant_name: str,
+        status: str = None,
+    ):
+        """Updates the backup status of the tenant.
+
+        Updates the backup status of the tenant with the specified status.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            status (str, optional): The backup status. Supported value is 'canceled'. Default is 'canceled'.
+        """
+        data = {}
+        if status is not None:
+            data['status'] = status
+        else:
+            data['status'] = ""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup", "PATCH", data)
+        return self._handle_ret_request(req)
+
+    def patch_cluster_backup_log_status(
+        self,
+        status: str = None,
+    ):
+        """Updates the archive log statu of the obcluster.
+
+        Updates the archive log of the obcluster with the specified status.
+
+        Args:
+            status (str, optional): The expected status of the archive log. Supported values are 'doing' and 'stop'. Default is 'stop'.
+        """
+        data = {}
+        if status is not None:
+            data['status'] = status
+        else:
+            data['status'] = ""
+        req = self.create_request("/api/v1/obcluster/backup/log", "PATCH", data)
+        return self._handle_ret_request(req)
+    
+    def patch_tenant_backup_log_status(
+        self,
+        tenant_name: str,
+        status: str = None,
+    ):
+        """Updates the archive log status of the tenant.
+
+        Updates the archive log of the tenant with the specified status.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            status (str, optional): The expected status of the archive log. Supported values are 'doing' and 'stop'. Default is 'stop'.
+        """
+        data = {}
+        if status is not None:
+            data['status'] = status
+        else:
+            data['status'] = ""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/log", "PATCH", data)
+        return self._handle_ret_request(req)
+
+    def get_cluster_backup_overview(self)->ob.CdbObBackupResponse:
+        """Gets the overview of the obcluster backup jobs.
+
+        Gets the overview of the obcluster backup jobs.
+
+        Returns:
+            BackupStatus: The backup status of all the tenants.
+        """
+        req = self.create_request("/api/v1/obcluster/backup/overview", "GET")
+        return self._handle_ret_request(req, ob.CdbObBackupResponse)
+    
+    def get_tenant_backup_overview(self, tenant_name: str) -> ob.CdbObBackupResponse:
+        """Gets the overview of the tenant backup jobs.
+
+        Gets the overview of the tenant backup jobs.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+
+        Returns:
+            BackupStatus: The backup status of the tenant.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/overview", "GET")
+        return self._handle_ret_request(req, ob.CdbObBackupResponse)
+
+    def post_tenant_restore(
+        self,
+        data_backup_uri: str,
+        unit_config_name: str,
+        tenant_name: str,
+        zone_list: list,
+        archive_log_uri: str = None,
+        unit_num: int = None,
+        timestamp: str = None,
+        scn: int = None,
+        ha_high_thread_score: int = None,
+        primary_zone: str = None,
+        concurrency: int = None,
+        locality: str = None,
+        decryption: list = None,
+        kms_encrypt_info: str = None,
+    ):
+        """Restores the tenant.
+
+        Restores the tenant with the specified configurations.
+
+        Args:
+            data_backup_uri (str): Complete destination path for data backups.
+            unit_config_name (str): Specification configuration name for the tenant.
+            tenant_name (str): Name of the tenant targeted for restoration.
+            zone_list (list[str]): List of zones associated with the tenant.
+            archive_log_uri (str, optional): Destination path for log archives.
+            unit_num (int, optional): Number of units to utilize.
+            timestamp (str, optional): Specific timestamp for restoration.
+            scn (str, optional): System Change Number (SCN) for restoration.
+            ha_high_thread_score (int, optional): Adjusts high-priority HA threads count.
+            primary_zone (str, optional): Designated primary zone for the tenant.
+            concurrency (int, optional): Parallel processing level for data recovery.
+            locality (str, optional): Specifies the locality of the tenant.
+            decryption (list, optional): Decryption key for all backups.
+            kms_encrypt_info (str, optional): Key Management Service encryption details, if applicable.
+        """
+        data = {
+            'data_backup_uri': data_backup_uri,
+            'unit_config_name': unit_config_name,
+            'restore_tenant_name': tenant_name,
+            'zone_list': zone_list,
+        }
+        if archive_log_uri is not None:
+            data['archive_log_uri'] = archive_log_uri
+        if unit_num is not None:
+            data['unit_num'] = unit_num
+        if timestamp is not None:
+            data['timestamp'] = timestamp
+        if scn is not None:
+            data['scn'] = scn
+        if ha_high_thread_score is not None:
+            data['ha_high_thread_score'] = ha_high_thread_score
+        if primary_zone is not None:
+            data['primary_zone'] = primary_zone
+        if concurrency is not None: 
+            data['concurrency'] = concurrency
+        if decryption is not None:
+            data['decryption'] = decryption
+        if kms_encrypt_info is not None:
+            data['kms_encrypt_info'] = kms_encrypt_info
+        if locality is not None:
+            data['locality'] = locality
+        req = self.create_request("/api/v1/tenant/restore", "POST", data)
+        return self.__handle_task_ret_request(req)  
+    
+    def post_tenant_restore_sync(
+        self,
+        data_backup_uri: str,
+        unit_config_name: str,
+        tenant_name: str,
+        zone_list: list,
+        archive_log_uri: str = None,
+        unit_num: int = None,
+        timestamp: str = None,
+        scn: str = None,
+        ha_high_thread_score: int = None,
+        primary_zone: str = None,
+        concurrency: int = None,
+        locality: str = None,
+        decryption: list = None,
+        kms_encrypt_info: str = None,
+    ):
+        """Restores the tenant.
+
+        Restores the tenant with the specified configurations.
+
+        Args:
+            data_backup_uri (str): Complete destination path for data backups.
+            unit_config_name (str): Specification configuration name for the tenant.
+            tenant_name (str): Name of the tenant targeted for restoration.
+            zone_list (list[str]): List of zones associated with the tenant.
+            archive_log_uri (str, optional): Destination path for log archives.
+            unit_num (int, optional): Number of units to utilize.
+            timestamp (str, optional): Specific timestamp for restoration.
+            scn (str, optional): System Change Number (SCN) for restoration.
+            ha_high_thread_score (int, optional): Adjusts high-priority HA threads count.
+            primary_zone (str, optional): Designated primary zone for the tenant.
+            concurrency (int, optional): Parallel processing level for data recovery.
+            locality (str, optional): Specifies the locality of the tenant.
+            decryption (list, optional): Decryption key for all backups.
+            kms_encrypt_info (str, optional): Key Management Service encryption details, if applicable.
+        """
+        dag = self.post_tenant_restore(
+            data_backup_uri, unit_config_name, tenant_name, zone_list, archive_log_uri, unit_num,
+            timestamp, scn, ha_high_thread_score, primary_zone, concurrency, locality,
+            decryption, kms_encrypt_info
+        )
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_tenant_restore(self, tenant_name: str) -> int:
+        """Get the last restore dag ID of the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/restore", "DELETE")
+        return self._handle_ret_request(req, task.TaskDetailDTO)
+    
+    def delete_tenant_restore_sync(self, tenant_name: str) -> task.TaskDetailDTO:
+        """Get the last restore dag ID of the tenant.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+        """
+        dag = self.delete_tenant_restore(tenant_name)
+        if dag is None:
+            return None
+        return self.wait_dag_succeed(dag.generic_id)
+    
+    def get_tenant_restore_overview(self, tenant_name: str)-> ob.RestoreOverview :
+        """Gets the overview of the tenant restore jobs.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+
+        Returns:
+            RestoreOverview: The restore status of the tenant.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/restore/overview", "GET")
+        return self._handle_ret_request(req, ob.RestoreOverview)
