@@ -822,14 +822,17 @@ class ClientV1(Client):
             dag = self.wait_dag_succeed(generic_id)
         except TaskExecuteFailedError as e:
             dag = e.dag
-        if operator == task.Operator.ROLLBACK_STR.value:
+        if operator.upper() == task.Operator.ROLLBACK_STR.value:
             if dag.is_succeed() and dag.is_rollback():
                 return True
-        elif operator == task.Operator.CANCEL_STR.value:
+        elif operator.upper() == task.Operator.CANCEL_STR.value:
             if dag.is_failed() and dag.is_cancel():
                 return True
-        elif operator == task.Operator.RETRY_STR.value:
+        elif operator.upper() == task.Operator.RETRY_STR.value:
             if dag.is_succeed() and dag.is_run():
+                return True
+        elif operator.upper() == task.Operator.PASS_STR.value:
+            if dag.is_succeed() and dag.is_pass():
                 return True
         raise TaskExecuteFailedError(
             f"Failed to {operator} task {generic_id}", dag)
