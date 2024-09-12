@@ -256,7 +256,10 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.remove(ip, port)
-        return self.wait_dag_succeed(dag.generic_id)
+        dag = self.wait_dag_succeed(dag.generic_id)
+        if self.host == ip and self.port == port:
+            self._reset_auth()
+        return dag
 
     def config_observer(self,
                         configs: dict,
@@ -1466,7 +1469,6 @@ class ClientV1(Client):
             need_remove = True
         if need_remove:
             self.remove_sync(self.host, self.port)
-            self._reset_auth()
         return True
 
     def agg_create_cluster(
@@ -1530,14 +1532,14 @@ class ClientV1(Client):
             if clear_if_failed:
                 self.agg_clear_uninitialized_agent()
             raise e
-        
+
     def _gen_cluster_backup_config(
         self,
         backup_base_uri: str = None,
         log_archive_concurrency: int = -1,
         binding: str = None,
         ha_low_thread_score: int = -1,
-        piece_switch_interval: str = None, # Mandatory or Optional, default Optional
+        piece_switch_interval: str = None,  # Mandatory or Optional, default Optional
         archive_lag_target: str = None,
         delete_policy: str = None,
         delete_recovery_window: str = None,
@@ -1591,9 +1593,10 @@ class ClientV1(Client):
             backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
-        req = self.create_request("/api/v1/obcluster/backup/config", "POST", data)
+        req = self.create_request(
+            "/api/v1/obcluster/backup/config", "POST", data)
         return self.__handle_task_ret_request(req)
-    
+
     def post_cluster_backup_config_sync(
         self,
         backup_base_uri: str,
@@ -1609,7 +1612,7 @@ class ClientV1(Client):
 
         Configures the backup of the obcluster with the specified configurations.
         Wait for the task to succeed.
-        
+
         Args:
             backup_base_uri (str): The base URI where backups are stored.
             log_archive_concurrency (int, optional): Specifies the concurrency level for log archiving.
@@ -1626,14 +1629,14 @@ class ClientV1(Client):
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
         return self.wait_dag_succeed(dag.generic_id)
-    
+
     def patch_cluster_backup_config(
         self,
         backup_base_uri: str = None,
         log_archive_concurrency: int = -1,
         binding: str = None,
         ha_low_thread_score: int = -1,
-        piece_switch_interval: str = None, 
+        piece_switch_interval: str = None,
         archive_lag_target: str = None,
         delete_policy: str = None,
         delete_recovery_window: str = None,
@@ -1656,16 +1659,17 @@ class ClientV1(Client):
             backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
-        req = self.create_request("/api/v1/obcluster/backup/config", "PATCH", data)
-        return self.__handle_task_ret_request(req)       
-    
+        req = self.create_request(
+            "/api/v1/obcluster/backup/config", "PATCH", data)
+        return self.__handle_task_ret_request(req)
+
     def patch_cluster_backup_config_sync(
         self,
         backup_base_uri: str = None,
         log_archive_concurrency: int = -1,
         binding: str = None,
         ha_low_thread_score: int = -1,
-        piece_switch_interval: str = None, 
+        piece_switch_interval: str = None,
         archive_lag_target: str = None,
         delete_policy: str = None,
         delete_recovery_window: str = None,
@@ -1684,7 +1688,7 @@ class ClientV1(Client):
             delete_policy (str, optional): Policy for deletion, limited to 'default'.
             delete_recovery_window (str, optional): Defines the recovery window for which data deletion policies apply.
         """
- 
+
         dag = self.patch_cluster_backup_config(
             backup_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
@@ -1698,7 +1702,7 @@ class ClientV1(Client):
         log_archive_concurrency: int = -1,
         binding: str = None,
         ha_low_thread_score: int = -1,
-        piece_switch_interval: str = None, # Mandatory or Optional, default Optional
+        piece_switch_interval: str = None,  # Mandatory or Optional, default Optional
         archive_lag_target: str = None,
         delete_policy: str = None,
         delete_recovery_window: str = None,
@@ -1718,13 +1722,13 @@ class ClientV1(Client):
             data['piece_switch_interval'] = piece_switch_interval
         if archive_lag_target is not None:
             data['archive_lag_target'] = archive_lag_target
-        if delete_policy is not None or delete_recovery_window is not None :
+        if delete_policy is not None or delete_recovery_window is not None:
             data['delete_policy'] = {
                 'policy': delete_policy,
                 'recovery_window': delete_recovery_window
             }
         return data
-    
+
     def post_tenant_backup_config(
         self,
         tenant_name: str,
@@ -1758,9 +1762,10 @@ class ClientV1(Client):
             data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/config", "POST", data)
-        return self.__handle_task_ret_request(req) 
-    
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup/config", "POST", data)
+        return self.__handle_task_ret_request(req)
+
     def post_tenant_backup_config_sync(
         self,
         tenant_name: str,
@@ -1795,7 +1800,7 @@ class ClientV1(Client):
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
         return self.wait_dag_succeed(dag.generic_id)
-    
+
     def patch_tenant_backup_config(
         self,
         tenant_name: str,
@@ -1829,9 +1834,10 @@ class ClientV1(Client):
             data_base_uri, archive_base_uri, log_archive_concurrency, binding, ha_low_thread_score,
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/config", "PATCH", data)
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup/config", "PATCH", data)
         return self.__handle_task_ret_request(req)
-    
+
     def patch_tenant_backup_config_sync(
         self,
         tenant_name: str,
@@ -1866,7 +1872,7 @@ class ClientV1(Client):
             piece_switch_interval, archive_lag_target, delete_policy, delete_recovery_window
         )
         return self.wait_dag_succeed(dag.generic_id)
-        
+
     def start_cluster_backup(
         self,
         mode: str = None,
@@ -1893,7 +1899,7 @@ class ClientV1(Client):
             data['encryption'] = encryption
         req = self.create_request("/api/v1/obcluster/backup", "POST", data)
         return self.__handle_task_ret_request(req)
-    
+
     def start_cluster_backup_sync(
         self,
         mode: str = None,
@@ -1910,9 +1916,8 @@ class ClientV1(Client):
             encryption (str, optional): The encryption passphrase used to secure the backup once completed.
         """
         dag = self.start_cluster_backup(mode, plus_archive, encryption)
-        return self.wait_dag_succeed(dag.generic_id) 
-        
-    
+        return self.wait_dag_succeed(dag.generic_id)
+
     def start_tenant_backup(
         self,
         tenant_name: str,
@@ -1939,9 +1944,10 @@ class ClientV1(Client):
             data['plus_archive'] = plus_archive
         if encryption is not None:
             data['encryption'] = encryption
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup", "POST", data)
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup", "POST", data)
         return self.__handle_task_ret_request(req)
-    
+
     def start_tenant_backup_sync(
         self,
         tenant_name: str,
@@ -1959,9 +1965,10 @@ class ClientV1(Client):
             plus_archive (bool, optional): Whether to add log archive together with data backup.
             encryption (str, optional): The encryption of the backup.
         """
-        dag = self.start_tenant_backup(tenant_name, mode, plus_archive, encryption)
+        dag = self.start_tenant_backup(
+            tenant_name, mode, plus_archive, encryption)
         return self.wait_dag_succeed(dag.generic_id)
-        
+
     def patch_cluster_backup_status(
         self,
         status: str = None,
@@ -1999,7 +2006,8 @@ class ClientV1(Client):
             data['status'] = status
         else:
             data['status'] = ""
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup", "PATCH", data)
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup", "PATCH", data)
         return self._handle_ret_request(req)
 
     def patch_cluster_backup_log_status(
@@ -2018,9 +2026,10 @@ class ClientV1(Client):
             data['status'] = status
         else:
             data['status'] = ""
-        req = self.create_request("/api/v1/obcluster/backup/log", "PATCH", data)
+        req = self.create_request(
+            "/api/v1/obcluster/backup/log", "PATCH", data)
         return self._handle_ret_request(req)
-    
+
     def patch_tenant_backup_log_status(
         self,
         tenant_name: str,
@@ -2039,10 +2048,11 @@ class ClientV1(Client):
             data['status'] = status
         else:
             data['status'] = ""
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/log", "PATCH", data)
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup/log", "PATCH", data)
         return self._handle_ret_request(req)
 
-    def get_cluster_backup_overview(self)->ob.CdbObBackupResponse:
+    def get_cluster_backup_overview(self) -> ob.CdbObBackupResponse:
         """Gets the overview of the obcluster backup jobs.
 
         Gets the overview of the obcluster backup jobs.
@@ -2052,7 +2062,7 @@ class ClientV1(Client):
         """
         req = self.create_request("/api/v1/obcluster/backup/overview", "GET")
         return self._handle_ret_request(req, ob.CdbObBackupResponse)
-    
+
     def get_tenant_backup_overview(self, tenant_name: str) -> ob.CdbObBackupResponse:
         """Gets the overview of the tenant backup jobs.
 
@@ -2064,7 +2074,8 @@ class ClientV1(Client):
         Returns:
             BackupStatus: The backup status of the tenant.
         """
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/backup/overview", "GET")
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/backup/overview", "GET")
         return self._handle_ret_request(req, ob.CdbObBackupResponse)
 
     def post_tenant_restore(
@@ -2122,7 +2133,7 @@ class ClientV1(Client):
             data['ha_high_thread_score'] = ha_high_thread_score
         if primary_zone is not None:
             data['primary_zone'] = primary_zone
-        if concurrency is not None: 
+        if concurrency is not None:
             data['concurrency'] = concurrency
         if decryption is not None:
             data['decryption'] = decryption
@@ -2131,8 +2142,8 @@ class ClientV1(Client):
         if locality is not None:
             data['locality'] = locality
         req = self.create_request("/api/v1/tenant/restore", "POST", data)
-        return self.__handle_task_ret_request(req)  
-    
+        return self.__handle_task_ret_request(req)
+
     def post_tenant_restore_sync(
         self,
         data_backup_uri: str,
@@ -2183,9 +2194,10 @@ class ClientV1(Client):
         Args:
             tenant_name (str): The name of the tenant.
         """
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/restore", "DELETE")
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/restore", "DELETE")
         return self._handle_ret_request(req, task.TaskDetailDTO)
-    
+
     def delete_tenant_restore_sync(self, tenant_name: str) -> task.TaskDetailDTO:
         """Get the last restore dag ID of the tenant.
 
@@ -2196,8 +2208,8 @@ class ClientV1(Client):
         if dag is None:
             return None
         return self.wait_dag_succeed(dag.generic_id)
-    
-    def get_tenant_restore_overview(self, tenant_name: str)-> ob.RestoreOverview :
+
+    def get_tenant_restore_overview(self, tenant_name: str) -> ob.RestoreOverview:
         """Gets the overview of the tenant restore jobs.
 
         Args:
@@ -2206,5 +2218,6 @@ class ClientV1(Client):
         Returns:
             RestoreOverview: The restore status of the tenant.
         """
-        req = self.create_request(f"/api/v1/tenant/{tenant_name}/restore/overview", "GET")
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/restore/overview", "GET")
         return self._handle_ret_request(req, ob.RestoreOverview)
