@@ -2081,17 +2081,14 @@ class ClientV1(Client):
     def post_tenant_restore(
         self,
         data_backup_uri: str,
-        unit_config_name: str,
         tenant_name: str,
-        zone_list: list,
+        zone_list: List[tenant.ZoneParam],
         archive_log_uri: str = None,
-        unit_num: int = None,
         timestamp: str = None,
         scn: int = None,
         ha_high_thread_score: int = None,
         primary_zone: str = None,
         concurrency: int = None,
-        locality: str = None,
         decryption: list = None,
         kms_encrypt_info: str = None,
     ):
@@ -2101,30 +2098,24 @@ class ClientV1(Client):
 
         Args:
             data_backup_uri (str): Complete destination path for data backups.
-            unit_config_name (str): Specification configuration name for the tenant.
             tenant_name (str): Name of the tenant targeted for restoration.
-            zone_list (list[str]): List of zones associated with the tenant.
+            zone_list (List[ZoneParam]): The zone list of the tenant, include replica configs and unit configs.
             archive_log_uri (str, optional): Destination path for log archives.
-            unit_num (int, optional): Number of units to utilize.
             timestamp (str, optional): Specific timestamp for restoration.
             scn (str, optional): System Change Number (SCN) for restoration.
             ha_high_thread_score (int, optional): Adjusts high-priority HA threads count.
             primary_zone (str, optional): Designated primary zone for the tenant.
             concurrency (int, optional): Parallel processing level for data recovery.
-            locality (str, optional): Specifies the locality of the tenant.
             decryption (list, optional): Decryption key for all backups.
             kms_encrypt_info (str, optional): Key Management Service encryption details, if applicable.
         """
         data = {
             'data_backup_uri': data_backup_uri,
-            'unit_config_name': unit_config_name,
             'restore_tenant_name': tenant_name,
-            'zone_list': zone_list,
+            "zone_list": [zone.__dict__ for zone in zone_list],
         }
         if archive_log_uri is not None:
             data['archive_log_uri'] = archive_log_uri
-        if unit_num is not None:
-            data['unit_num'] = unit_num
         if timestamp is not None:
             data['timestamp'] = timestamp
         if scn is not None:
@@ -2139,25 +2130,20 @@ class ClientV1(Client):
             data['decryption'] = decryption
         if kms_encrypt_info is not None:
             data['kms_encrypt_info'] = kms_encrypt_info
-        if locality is not None:
-            data['locality'] = locality
         req = self.create_request("/api/v1/tenant/restore", "POST", data)
         return self.__handle_task_ret_request(req)
 
     def post_tenant_restore_sync(
         self,
         data_backup_uri: str,
-        unit_config_name: str,
         tenant_name: str,
-        zone_list: list,
+        zone_list: List[tenant.ZoneParam],
         archive_log_uri: str = None,
-        unit_num: int = None,
         timestamp: str = None,
-        scn: str = None,
+        scn: int = None,
         ha_high_thread_score: int = None,
         primary_zone: str = None,
         concurrency: int = None,
-        locality: str = None,
         decryption: list = None,
         kms_encrypt_info: str = None,
     ):
@@ -2167,23 +2153,20 @@ class ClientV1(Client):
 
         Args:
             data_backup_uri (str): Complete destination path for data backups.
-            unit_config_name (str): Specification configuration name for the tenant.
             tenant_name (str): Name of the tenant targeted for restoration.
-            zone_list (list[str]): List of zones associated with the tenant.
+            zone_list (List[ZoneParam]): The zone list of the tenant, include replica configs and unit configs.
             archive_log_uri (str, optional): Destination path for log archives.
-            unit_num (int, optional): Number of units to utilize.
             timestamp (str, optional): Specific timestamp for restoration.
             scn (str, optional): System Change Number (SCN) for restoration.
             ha_high_thread_score (int, optional): Adjusts high-priority HA threads count.
             primary_zone (str, optional): Designated primary zone for the tenant.
             concurrency (int, optional): Parallel processing level for data recovery.
-            locality (str, optional): Specifies the locality of the tenant.
             decryption (list, optional): Decryption key for all backups.
             kms_encrypt_info (str, optional): Key Management Service encryption details, if applicable.
         """
         dag = self.post_tenant_restore(
-            data_backup_uri, unit_config_name, tenant_name, zone_list, archive_log_uri, unit_num,
-            timestamp, scn, ha_high_thread_score, primary_zone, concurrency, locality,
+            data_backup_uri, tenant_name, zone_list, archive_log_uri,
+            timestamp, scn, ha_high_thread_score, primary_zone, concurrency,
             decryption, kms_encrypt_info
         )
         return self.wait_dag_succeed(dag.generic_id)
