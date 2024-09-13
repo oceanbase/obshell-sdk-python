@@ -2179,7 +2179,7 @@ class ClientV1(Client):
         """
         req = self.create_request(
             f"/api/v1/tenant/{tenant_name}/restore", "DELETE")
-        return self._handle_task_ret_request(req)
+        return self.__handle_task_ret_request(req)
 
     def delete_tenant_restore_sync(self, tenant_name: str) -> task.DagDetailDTO:
         """Get the last restore dag ID of the tenant.
