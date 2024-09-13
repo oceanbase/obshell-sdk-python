@@ -127,7 +127,7 @@ class Client:
         try:
             agent = get_info(f"{self.host}:{self.port}")
             if (agent.version == OBShellVersion.V422 or
-                    agent.version == OBShellVersion.V423):
+                    agent.version >= OBShellVersion.V423):
                 self._reset_auth()  # to confirm the pk and auth version is right
                 resp = self.__real_execute(req)
                 if resp.status_code == 200:
@@ -153,7 +153,7 @@ class Client:
             if not (auth.get_version() == AuthVersion.V1 and
                     agent.version == OBShellVersion.V422 or
                     auth.get_version() == AuthVersion.V2 and
-                    agent.version == OBShellVersion.V423):
+                    agent.version >= OBShellVersion.V423):
                 raise Exception((f"Auth version {auth.get_version()} "
                                  f"is not supported by agent {agent.version}"))
 
@@ -170,7 +170,7 @@ class Client:
         supported_auth = []
         if agent.version == OBShellVersion.V422:
             supported_auth.append(AuthVersion.V1)
-        elif agent.version == OBShellVersion.V423:
+        elif agent.version >= OBShellVersion.V423:
             supported_auth.append(AuthVersion.V2)
         else:
             if len(agent.supported_auth) == 0:
