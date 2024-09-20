@@ -44,6 +44,7 @@ class OBShellVersion:
 
     V422 = Version("4.2.2")
     V423 = Version("4.2.3")
+    V424 = Version("4.2.4")
 
     def __contains__(self, item) -> bool:
         return item in self.__dict__

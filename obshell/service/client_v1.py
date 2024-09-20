@@ -104,8 +104,7 @@ class ClientV1(Client):
 
     def _encrypt_password(self, pwd: str) -> str:
         agent = get_info(self.server)
-        if (OBShellVersion.V422 in agent.version or
-                OBShellVersion.V423 in agent.version):
+        if agent.version < OBShellVersion.V424:
             pk = get_public_key(self.server)
             key = RSA.import_key(base64.b64decode(pk))
             cipher = PKCS1_cipher.new(key)
@@ -115,6 +114,7 @@ class ClientV1(Client):
             encrypted_chunks = [cipher.encrypt(chunk) for chunk in chunks]
             encrypted = b''.join(encrypted_chunks)
             return base64.b64encode(encrypted).decode('utf-8')
+        return pwd
 
     def _parse_pkg(self, pkg_path: str):
         file_name = os.path.basename(pkg_path)
