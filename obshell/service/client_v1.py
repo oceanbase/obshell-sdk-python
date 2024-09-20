@@ -256,10 +256,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.remove(ip, port)
-        dag = self.wait_dag_succeed(dag.generic_id)
-        if self.host == ip and self.port == port:
-            self._reset_auth()
-        return dag
+        return self.wait_dag_succeed(dag.generic_id)
 
     def config_observer(self,
                         configs: dict,

@@ -76,6 +76,7 @@ class PasswordAuthMethod:
 
     def reset(self) -> None:
         self.pk = None
+        self.check_identity = False
 
     def _init_pk(self, server: str):
         if self.pk is None:
