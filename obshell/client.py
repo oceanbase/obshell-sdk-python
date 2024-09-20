@@ -126,8 +126,7 @@ class Client:
             return False
         try:
             agent = get_info(f"{self.host}:{self.port}")
-            if (agent.version == OBShellVersion.V422 or
-                    agent.version >= OBShellVersion.V423):
+            if agent.version <= OBShellVersion.V424:
                 self._reset_auth()  # to confirm the pk and auth version is right
                 resp = self.__real_execute(req)
                 if resp.status_code == 200:
@@ -156,6 +155,10 @@ class Client:
                     agent.version >= OBShellVersion.V423):
                 raise Exception((f"Auth version {auth.get_version()} "
                                  f"is not supported by agent {agent.version}"))
+        else:
+            if auth.get_version() not in agent.supported_auth:
+                raise Exception((f"Auth version {auth.get_version()} "
+                                 f"is not supported by agent {agent.version}"))
 
     def _reset_auth(self):
         if not self._auth.is_auto_select_version:
@@ -168,14 +171,14 @@ class Client:
         auth = self._auth
         agent = get_info(f"{self.host}:{self.port}")
         supported_auth = []
-        if agent.version == OBShellVersion.V422:
+        if len(agent.supported_auth) != 0:
+            supported_auth = agent.supported_auth
+        elif agent.version == OBShellVersion.V422:
             supported_auth.append(AuthVersion.V1)
         elif agent.version >= OBShellVersion.V423:
             supported_auth.append(AuthVersion.V2)
         else:
-            if len(agent.supported_auth) == 0:
-                raise Exception("No supported auth methods")
-            supported_auth = agent.supported_auth
+            raise Exception("No supported auth methods")
 
         if not auth.auto_select_version(supported_auth):
             raise Exception("No supported auth methods")
