@@ -32,9 +32,8 @@ def get_info(server: str) -> AgentInfo:
         raise Exception(f"Failed to get version from {server}, no data")
     identity = data.get("identity")
     version = data.get("version")
-    auth_version = data.get("auth_version")
-    supported_auth = data.get("supported_auth", [])
-    info = AgentInfo(identity, version, auth_version, supported_auth)
+    supported_auth = data.get("supportedAuth", [])
+    info = AgentInfo(identity, version, supported_auth)
     return info
 
 

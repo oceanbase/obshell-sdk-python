@@ -37,11 +37,9 @@ class AgentInfo:
     def __init__(self,
                  identity: str,
                  version: str,
-                 auth_version: str,
                  supported_auth: List[str]):
         self.identity = Agentidentity(identity)
         self.version = Version(version)
-        self.auth_version = auth_version
         self.supported_auth = supported_auth
 
     def is_supported_auth(self, auth_type: str) -> bool:
