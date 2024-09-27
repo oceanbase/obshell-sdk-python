@@ -537,7 +537,7 @@ class ClientV1(Client):
 
     def scale_out_sync(self,
                        ip: str,
-                       port: str,
+                       port: int,
                        zone: str,
                        ob_configs: dict) -> task.DagDetailDTO:
         """Scales out the cluster synchronously.
