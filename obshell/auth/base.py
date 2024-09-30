@@ -73,9 +73,12 @@ class Auth:
         raise NotImplementedError
 
     def is_support(self, version: AuthVersion) -> bool:
+        if not isinstance(version, AuthVersion):
+            version = AuthVersion(version)
         return version in self._support_vers
 
     def set_version(self, version: AuthVersion):
+        version = AuthVersion(version)
         if not self.is_support(version):
             raise ValueError("Version not supported")
         self._select_version = version
@@ -88,6 +91,7 @@ class Auth:
         if not vers:
             vers = []
         for ver in vers:
+            ver = AuthVersion(ver)
             if self.is_support(ver):
                 self._select_version = ver
                 self._auto_select_version = True
