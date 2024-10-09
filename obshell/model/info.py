@@ -17,6 +17,7 @@ from typing import List
 from enum import Enum
 
 from obshell.model.version import Version
+from obshell.auth.base import AuthVersion
 
 
 def model_str(cls):
@@ -40,7 +41,8 @@ class AgentInfo:
                  supported_auth: List[str]):
         self.identity = Agentidentity(identity)
         self.version = Version(version)
-        self.supported_auth = supported_auth
+        self.supported_auth = [AuthVersion(version)
+                               for version in supported_auth]
 
     def is_supported_auth(self, auth_type: str) -> bool:
         return auth_type in self.supported_auth
