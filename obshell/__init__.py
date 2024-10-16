@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .service.client_set import ClientSet
-from .service.client_v1 import TaskExecuteFailedError, OBShellHandleError
+from .service.client_v1 import TaskExecuteFailedError, OBShellHandleError, IllegalOperatorError
 from .service.client_v1 import IllegalOperatorError, ClientV1
 
 __all__ = ('ClientSet', 'TaskExecuteFailedError',

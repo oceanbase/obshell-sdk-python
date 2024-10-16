@@ -15,7 +15,7 @@
 
 import json
 from enum import Enum
-from .info import model_str
+from .format import model_str
 
 
 class State(Enum):

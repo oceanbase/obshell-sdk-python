@@ -13,20 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .format import model_str
-
-
-class UnitConfig:
-
-    def __init__(self, data: dict):
-        for key in ["create_time", "modify_time", "unit_config_id", "name", "max_cpu",
-                    "min_cpu", "memory_size", "log_disk_size", "max_iops", "min_iops"]:
-            if key in data:
-                setattr(self, key, data[key])
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return UnitConfig(data)
-
-    def __str__(self):
-        return model_str(self)
+def model_str(cls):
+    def __convert_value(value):
+        if isinstance(value, list):
+            return [__convert_value(item) for item in value]
+        elif isinstance(value, dict):
+            return {f"{key}": __convert_value(value) for key, value in value.items()}
+        else:
+            return str(value)
+    members = ", ".join(
+        f"\"{k}\":\"{__convert_value(v)}\"" for k, v in cls.__dict__.items())
+    return '{' + members.replace("'", "\"") + '}'

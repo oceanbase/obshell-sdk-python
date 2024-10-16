@@ -16,21 +16,9 @@
 from typing import List
 from enum import Enum
 
+from .format import model_str
 from obshell.model.version import Version
 from obshell.auth.base import AuthVersion
-
-
-def model_str(cls):
-    def __convert_value(value):
-        if isinstance(value, list):
-            return [__convert_value(item) for item in value]
-        elif isinstance(value, dict):
-            return {f"{key}": __convert_value(value) for key, value in value.items()}
-        else:
-            return str(value)
-    members = ", ".join(
-        f"\"{k}\":\"{__convert_value(v)}\"" for k, v in cls.__dict__.items())
-    return '{' + members.replace("'", "\"") + '}'
 
 
 class AgentInfo:
