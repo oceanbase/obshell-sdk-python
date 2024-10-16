@@ -39,8 +39,9 @@ class UpgradePkgInfo:
     def __str__(self) -> str:
         return model_str(self)
 
+
 class CdbObBackupTask:
-    
+
     def __init__(self, data: dict):
         self.tenant_id = data.get("tenant_id")
         self.task_id = data.get("task_id")
@@ -68,36 +69,38 @@ class CdbObBackupTask:
         self.result = data.get("result")
         self.comment = data.get("comment")
         self.path = data.get("path")
-        
+
     @classmethod
     def from_dict(cls, data: dict):
         return CdbObBackupTask(data)
-    
+
     def __str__(self) -> str:
         return model_str(self)
-    
+
 
 class CdbObBackupResponse:
-    
+
     def __init__(self, data: dict):
         if data.get("statuses"):
-            self.statuses = [CdbObBackupTask.from_dict(task) for task in data.get('statuses', [])]
+            self.statuses = [CdbObBackupTask.from_dict(
+                task) for task in data.get('statuses', [])]
         if data.get("status"):
             self.status = data.get("status")
 
     @classmethod
     def from_dict(cls, data: dict):
         return cls(data)
-    
+
     def __str__(self) -> str:
         return model_str(self)
 
-class RestoreOverview: 
-    
+
+class RestoreOverview:
+
     def __init__(self, data: dict):
         self.tenant_id = data.get("tenant_id")
         self.job_id = data.get("job_id")
-        self.restore_tenant_name = data.get("restore_tenant_name")  
+        self.restore_tenant_name = data.get("restore_tenant_name")
         self.restore_tenant_id = data.get("restore_tenant_id")
         self.backup_tenant_name = data.get("backup_tenant_name")
         self.backup_tenant_id = data.get("backup_tenant_id")
@@ -126,11 +129,10 @@ class RestoreOverview:
         self.finish_ls_count = data.get("finish_ls_count")
         self.comment = data.get("comment")
         self.finish_timestamp = data.get("finish_timestamp")
-        
+
     @classmethod
     def from_dict(cls, data: dict):
         return RestoreOverview(data)
-    
+
     def __str__(self) -> str:
         return model_str(self)
-    
