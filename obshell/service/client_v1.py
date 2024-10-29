@@ -364,12 +364,17 @@ class ClientV1(Client):
         self._set_password_candidate_auth(root_pwd)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def init(self) -> task.DagDetailDTO:
+    def init(self, import_script=False) -> task.DagDetailDTO:
         """Initializes the cluster.
 
         Return as soon as request successfully.
         You can use wait_dag_succeed to wait for the init task to succeed or
         use init_sync to initialize synchronously instead.
+
+        Args:
+            import_script (bool, optional): 
+                Whether need to import the observer's script. Defaults to False.
+                Support from OBShell V4.2.4.2.
 
         Returns:
             Task detail as task.DagDetailDTO.
@@ -377,10 +382,11 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: error message return by OBShell server.
         """
-        req = self.create_request("/api/v1/ob/init", "POST")
+        req = self.create_request(
+            "/api/v1/ob/init", "POST", data={"import_script": import_script})
         return self.__handle_task_ret_request(req)
 
-    def init_sync(self) -> task.DagDetailDTO:
+    def init_sync(self, import_script=False) -> task.DagDetailDTO:
         """Initializes the cluster synchronously.
 
         Seealso init.
@@ -391,7 +397,7 @@ class ClientV1(Client):
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.init()
+        dag = self.init(import_script)
         return self.wait_dag_succeed(dag.generic_id)
 
     def start(self, level: str, target: list, force_pass_dag=None) -> task.DagDetailDTO:
@@ -1023,7 +1029,8 @@ class ClientV1(Client):
 
     def create_tenant(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL', primary_zone: str = None, whitelist: str = None,
-            root_password: str = None, scenario: str = None, charset: str = None, collation: str = None, read_only: bool = False,
+            root_password: str = None, scenario: str = None, import_script: bool = False,
+            charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Creates a tenant.
 
@@ -1042,7 +1049,8 @@ class ClientV1(Client):
             "zone_list": [zone.__dict__ for zone in zone_list],
         }
         options = ['mode', 'primary_zone', 'whitelist', 'root_password', 'charset',
-                   'collation', 'read_only', 'comment', 'variables', 'parameters', 'scenario']
+                   "import_script", 'collation', 'read_only', 'comment', 'variables',
+                   'parameters', 'scenario']
         mydict = locals()
         for k, v in mydict.items():
             if k in options and v is not None:
@@ -1052,8 +1060,8 @@ class ClientV1(Client):
 
     def create_tenant_sync(
             self, tenant_name: str, zone_list: List[tenant.ZoneParam], mode: str = 'MYSQL',
-            primary_zone: str = "RANDOM", whitelist: str = None, root_password: str = None,
-            scenario: str = None,
+            primary_zone: str = "RANDOM", whitelist: str = None,
+            root_password: str = None, scenario: str = None, import_script: bool = False,
             charset: str = None, collation: str = None, read_only: bool = False,
             comment: str = None, variables: dict = None, parameters: dict = None) -> task.DagDetailDTO:
         """Create a tenant synchronously.
@@ -1076,6 +1084,9 @@ class ClientV1(Client):
                 Defaults to 'oltp'.
             root_password (str, optional): 
                 The root password of the tenant. Defaults to Empty.
+            import_script (bool, optional):
+                Whether need to import the observer's script. Defaults to False.
+                Support from OBShell V4.2.4.2.
             charset (str, optional): The charset of the tenant.
                 If not set, the charset will be set to default value by observer.
             collation (str, optional): The collation of the tenant.
@@ -1095,7 +1106,8 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.create_tenant(
-            tenant_name, zone_list, mode, primary_zone, whitelist, root_password, scenario, charset, collation, read_only, comment, variables, parameters)
+            tenant_name, zone_list, mode, primary_zone, whitelist, root_password,
+            scenario, import_script, charset, collation, read_only, comment, variables, parameters)
         return self.wait_dag_succeed(dag.generic_id)
 
     def drop_tenant(self, tenant_name: str, need_recycle: bool = False) -> task.DagDetailDTO:
