@@ -1504,7 +1504,7 @@ class ClientV1(Client):
         copied_configs = copy.deepcopy(servers_with_configs)
         if self.server not in copied_configs:
             raise IllegalOperatorError(
-                "copied_configs should include the server of the client.")
+                "configs should include the server of the client.")
         try:
             if 'zone' not in copied_configs[self.server]:
                 raise IllegalOperatorError(
