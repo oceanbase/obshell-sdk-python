@@ -16,6 +16,8 @@
 from .service.client_set import ClientSet
 from .service.client_v1 import TaskExecuteFailedError, OBShellHandleError, IllegalOperatorError
 from .service.client_v1 import IllegalOperatorError, ClientV1
+from .ssh import NodeConfig, initialize_nodes, start_obshell
 
 __all__ = ('ClientSet', 'TaskExecuteFailedError',
-           'OBShellHandleError', 'IllegalOperatorError', 'ClientV1')
+           'OBShellHandleError', 'IllegalOperatorError', 'ClientV1'
+           'NodeConfig', 'initialize_nodes', 'start_obshell')

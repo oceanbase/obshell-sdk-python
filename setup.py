@@ -29,6 +29,8 @@ setup(
     install_requires=[
         'pycryptodome',
         'requests',
+        'rpmfile',
+        'paramiko',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
