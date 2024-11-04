@@ -141,7 +141,7 @@ class SshClient:
     def remote_transporter(self):
         if self._remote_transporter is not None:
             return self._remote_transporter
-        if USE_RSYNC is False:
+        if USE_RSYNC is False or self.config.password:
             self._remote_transporter = self._sftp_write_file
         else:
             if self.config.ip not in self._rsync_cache:
