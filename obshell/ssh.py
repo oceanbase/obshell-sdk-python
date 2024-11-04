@@ -86,8 +86,7 @@ def local_execute(command: str, timeout=6000):
 
 def write_file(file_path, content, mode=0o644):
     logger.debug('write local file %s' % file_path)
-    mode = 'wb' if isinstance(content, bytes) else 'w'
-    with open(file_path, mode) as f:
+    with open(file_path, 'wb' if isinstance(content, bytes) else 'w') as f:
         f.write(content)
     os.chmod(file_path, mode)
     return True
