@@ -2213,3 +2213,23 @@ class ClientV1(Client):
         req = self.create_request(
             f"/api/v1/tenant/{tenant_name}/restore/overview", "GET")
         return self._handle_ret_request(req, ob.RestoreOverview)
+
+    def get_restore_windows(
+        self, 
+        data_backup_uri: str, 
+        archive_log_uri: str = None,
+        ):
+        """Get windows during which the tenant can be restored.
+        
+        Args:
+            data_backup_uri (str): Complete destination path for data backups.
+            archive_log_uri (str, optional): Destination path for log archives.
+        """
+        
+        data = {
+            'data_backup_uri': data_backup_uri,
+        }
+        if archive_log_uri is not None:
+            data['archive_log_uri'] = archive_log_uri
+        req = self.create_request("/api/v1/restore/windows", "GET", data)
+        return self._handle_ret_request(req, ob.RestoreWindows)
