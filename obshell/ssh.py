@@ -294,10 +294,17 @@ def initialize_nodes(rpm_packages: List[str], force_clean: bool, configs: List[N
             for link_path, target in links.items():
                 for config in configs:
                     ssh_client = ssh_clients[config.ip]
-                    target_path = get_dest_path(config.work_dir, target)
                     dest_path = get_dest_path(config.work_dir, link_path)
-                    logger.debug('create link %s -> %s' % (dest_path, target_path))
-                    ret = ssh_client.execute('ln -sf %s %s' % (target_path, dest_path))
+                    
+                    if target.startswith('./'):     
+                        target_path = get_dest_path(config.work_dir, target)
+                    else:
+                        target_path = target
+                        
+                    dir_path = os.path.dirname(dest_path)
+                    cmd = 'cd %s; ln -sf %s %s' % (dir_path, target_path, dest_path)
+                    logger.debug('create link %s -> %s' % (dest_path, target_path))      
+                    ret = ssh_client.execute(cmd)
 
                     if not ret:
                         raise Exception('Failed to create link %s -> %s: %s' % (dest_path, target_path, ret.stderr))
