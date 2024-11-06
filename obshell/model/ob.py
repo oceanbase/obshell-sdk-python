@@ -138,6 +138,7 @@ class RestoreOverview:
         return model_str(self)
     
 class RestoreWindow: 
+    
     def __init__(self, data: dict):
         self.start_time = data.get("start_time")
         self.end_time = data.get("end_time")
@@ -150,8 +151,15 @@ class RestoreWindow:
         return model_str(self)
     
 class RestoreWindows:
+    
     def __init__(self, data: dict):
         self.restore_windows = [RestoreWindow.from_dict(window) for window in data.get("restore_windows", [])]
+        
+    def __iter__(self):
+        return iter(self.restore_windows)
+    
+    def __item__(self, index):
+        return self.restore_windows[index]
         
     @classmethod
     def from_dict(cls, data: dict):
