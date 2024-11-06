@@ -250,8 +250,7 @@ class SshClient:
 
 def check_remote_dir_empty(client: SshClient, work_dir: str):
     logger.debug(f"Check remote directory: {work_dir}")
-    ret = client.execute(f'if [ -d {work_dir} ]; then ls -A {work_dir}; fi')
-    return ret and len(ret.stdout) == 0
+    return client.execute(f'![ -e {work_dir} ] || [ "$(ls -A {work_dir} 2>/dev/null | wc -l)" -eq 0 ]')
 
 
 def check_observer_version(client: SshClient, work_dir: str):
