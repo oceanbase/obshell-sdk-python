@@ -254,6 +254,11 @@ def check_remote_dir_empty(client: SshClient, work_dir: str):
     return ret and len(ret.stdout) == 0
 
 
+def check_observer_version(client: SshClient, work_dir: str):
+    logger.debug(f"Check observer version in remote directory: {work_dir}")
+    return client.execute(f"export LD_LIBRARY_PATH='{work_dir}/lib'; {work_dir}/bin/observer -V")
+
+
 def initialize_nodes(rpm_packages: List[str], force_clean: bool, configs: List[NodeConfig]):
     """ Initialize nodes by uploading RPM packages and optionally cleaning directories.
     
@@ -308,6 +313,12 @@ def initialize_nodes(rpm_packages: List[str], force_clean: bool, configs: List[N
 
                     if not ret:
                         raise Exception('Failed to create link %s -> %s: %s' % (dest_path, target_path, ret.stderr))
+                    
+        for ssh_client in ssh_clients.values():
+            ret = check_observer_version(ssh_client, ssh_client.config.work_dir)
+            if not ret:
+                raise Exception(f'Check {ssh_client.config.ip}:{ssh_client.config.work_dir} observer version failed, maybe be oceanbase-ce-libs not installed. Reason: {ret.stderr}')
+            
     except Exception as e:
         raise e
     finally:
