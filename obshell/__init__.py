@@ -20,4 +20,6 @@ from .ssh import NodeConfig, initialize_nodes, start_obshell
 
 __all__ = ('ClientSet', 'TaskExecuteFailedError',
            'OBShellHandleError', 'IllegalOperatorError', 'ClientV1',
-           'NodeConfig', 'initialize_nodes', 'start_obshell')
+           'NodeConfig', 'initialize_nodes', 'start_obshell',
+           'install_obshell', 'takeover',
+           )

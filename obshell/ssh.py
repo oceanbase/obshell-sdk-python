@@ -16,6 +16,7 @@
 import os
 import socket
 import getpass
+import time
 import tempfile
 import warnings
 import ipaddress
@@ -29,8 +30,11 @@ from paramiko import SFTPClient
 from paramiko.client import SSHClient, AutoAddPolicy
 from subprocess import Popen, PIPE
 
+from obshell import ClientSet, TaskExecuteFailedError
 from obshell.log import logger
 from obshell.pkg import load_rpm_pcakge, ExtractFile
+from obshell.auth.password import PasswordAuth
+from obshell.model.info import Agentidentity
 
 
 class TempFileMananger:
@@ -283,46 +287,73 @@ def initialize_nodes(rpm_packages: List[str], force_clean: bool, configs: List[N
 
         if force_clean:
             for ssh_client in ssh_clients.values():
-                clean_server(ssh_client, ssh_client.config.work_dir)
+                _clean_node(ssh_client, ssh_client.config.work_dir)
         else :
             for ssh_client in ssh_clients.values():
                 if not check_remote_dir_empty(ssh_client, ssh_client.config.work_dir):
                     raise Exception(f"{ssh_client.config.ip}:{ssh_client.config.work_dir} is not empty, please clean it first")
 
         for rpm_package in rpm_packages:
-            logger.debug('load rpm package %s' % rpm_package)
-            files, links = load_rpm_pcakge(rpm_package)
-            
-            write_files_to_servers(ssh_clients, configs, files)
-        
-            for link_path, target in links.items():
-                for config in configs:
-                    ssh_client = ssh_clients[config.ip]
-                    dest_path = get_dest_path(config.work_dir, link_path)
-                    
-                    if target.startswith('./'):     
-                        target_path = get_dest_path(config.work_dir, target)
-                    else:
-                        target_path = target
-                        
-                    dir_path = os.path.dirname(dest_path)
-                    cmd = 'cd %s; ln -sf %s %s' % (dir_path, target_path, dest_path)
-                    logger.debug('create link %s -> %s' % (dest_path, target_path))      
-                    ret = ssh_client.execute(cmd)
-
-                    if not ret:
-                        raise Exception('Failed to create link %s -> %s: %s' % (dest_path, target_path, ret.stderr))
+            install_package(rpm_package, ssh_clients, configs)
                     
         for ssh_client in ssh_clients.values():
             ret = check_observer_version(ssh_client, ssh_client.config.work_dir)
             if not ret:
                 raise Exception(f'Check {ssh_client.config.ip}:{ssh_client.config.work_dir} observer version failed, maybe be oceanbase-ce-libs not installed. Reason: {ret.stderr}')
-            
     except Exception as e:
         raise e
     finally:
         for ssh_client in ssh_clients.values():
             ssh_client.close()
+    return True
+
+
+def install_obshell(rpm_package: str, configs: List[NodeConfig]):
+    """
+        Installs and configures the OBShell RPM package on the specified list of node configurations.   
+        
+        Parameters:
+            rpm_package (str): The name of the RPM package to be installed.
+            configs (List[NodeConfig]): A list of node configurations, each containing the node's IP and other relevant information.
+            
+        Returns:
+            bool: Returns True if the installation is successful, otherwise returns False.
+            
+        Process:
+            1. Creates a dictionary of SSH clients based on the provided list of node configurations.
+            2. Attempts to install the RPM package on each node.
+            3. Ensures all SSH clients are closed if an exception occurs during the installation process.
+    """
+    ssh_clients = {config.ip: SshClient(config) for config in configs}
+    try:
+        return install_package(rpm_package, ssh_clients, configs)
+    finally:
+        for ssh_client in ssh_clients.values():
+            ssh_client.close()
+
+
+def install_package(rpm_package: str, ssh_clients: Dict[str, SshClient], configs: List[NodeConfig]):
+    logger.debug('load rpm package %s' % rpm_package)
+    files, links = load_rpm_pcakge(rpm_package)
+    
+    write_files_to_servers(ssh_clients, configs, files)
+
+    for link_path, target in links.items():
+        for config in configs:
+            ssh_client = ssh_clients[config.ip]
+            dest_path = get_dest_path(config.work_dir, link_path)
+            
+            if target.startswith('./'):     
+                target_path = get_dest_path(config.work_dir, target)
+            else:
+                target_path = target
+                
+            dir_path = os.path.dirname(dest_path)
+            cmd = 'mkdir -p %s; cd %s; ln -sf %s %s' % (dir_path, dir_path, target_path, dest_path)
+            logger.debug('create link %s -> %s' % (dest_path, target_path))      
+            ret = ssh_client.execute(cmd)
+            if not ret:
+                raise Exception('Failed to create link %s -> %s: %s' % (dest_path, target_path, ret.stderr))
     return True
 
 
@@ -332,7 +363,7 @@ class WriteFilesWorker(object):
         self.id = id
         self.config = config
         self.temp_file_manager = temp_file_manager
-        self.files = []
+        self.files: List[ExtractFile] = []
         self.size = 0
 
     def add_file(self, file: ExtractFile):
@@ -379,15 +410,19 @@ def write_files_to_servers(ssh_clients: Dict[str, SshClient] , configs: List[Nod
     for clients in ssh_clients.values():
         paraller_write_files(clients.config, files)
 
-    # for followers, copy files from primary node
+    # Copy installed files from one node to other nodes on the same machine to improve installation efficiency.
     for config in configs:
         client = ssh_clients[config.ip]
         primary_config = client.config
         if primary_config.work_dir == config.work_dir:
             continue
-        ret = client.execute("cp -r %s/* %s" % (primary_config.work_dir, config.work_dir))
-        if not ret:
-            raise Exception('Failed to copy files from %s to %s: %s' % (primary_config.ip, config.ip, ret.stderr))
+            
+        for file in files:
+            remote_file_path = get_dest_path(primary_config.work_dir, file.path)
+            dest_path = get_dest_path(config.work_dir, file.path)
+            ret = client.execute('mkdir -p %s; cp %s %s' % (os.path.dirname(dest_path), remote_file_path, dest_path))
+            if not ret:
+                raise Exception('Failed to copy files from %s to %s: %s' % (primary_config.ip, config.ip, ret.stderr))
     return True
 
 
@@ -439,19 +474,28 @@ def paraller_write_files(config: NodeConfig, files: List[ExtractFile]):
     return True
 
 
-def clean_server(client: SshClient, work_dir: str):
-    for file in ["daemon.pid", "obshell.pid", "observer.pid"]:
-        pid_file = os.path.join(work_dir, 'run', file)
-        if not client.execute('[ -f %s ]' % pid_file):
-            continue
-        ret = client.execute('kill -9 `cat %s`' % pid_file)
-        if not ret:
-            logger.debug('Failed to kill %s(%s): %s' % (client.config.ip, pid_file, ret.stderr))
+def _clean_node(client: SshClient, work_dir: str):
+    for file in ["daemon", "obshell", "observer"]:
+        _stop_process(client, work_dir, file)
 
     ret = client.execute('rm -fr %s' % work_dir)
     if not ret:
         raise Exception('Failed to clean %s work dir %s: %s' % (client.config.ip, work_dir, ret.stderr))
     return True
+
+
+def _stop_obshell(client: SshClient, work_dir: str):
+    for proc in ["daemon", "obshell"]:
+        _stop_process(client, work_dir, proc)
+
+
+def _stop_process(client: SshClient, work_dir: str, process_name: str):
+    pid_file = os.path.join(work_dir, 'run', f'{process_name}.pid')
+    if not client.execute('[ -f %s ]' % pid_file):
+        return
+    ret = client.execute('kill -9 `cat %s`' % pid_file)
+    if not ret:
+        logger.debug('Failed to kill %s(%s): %s' % (client.config.ip, pid_file, ret.stderr))
 
 
 def get_dest_path(work_dir: str, file_path: str) -> str:
@@ -492,3 +536,77 @@ def start_obshell(configs: List[NodeConfig]):
             ssh_client.close()
     logger.debug('start obshell servers success')
     return True
+
+
+def _start_obshell(client: SshClient, work_dir: str, ip: str, obshell_port: int, password: str = None):
+    logger.debug('start obshell %s:%s' % (ip, obshell_port))
+    cmd = '%s/bin/obshell admin start --ip %s --port %s' % (work_dir, ip, obshell_port)
+    if password is not None:
+        cmd = "export OB_ROOT_PASSWORD=%s; %s" % (password, cmd)
+    return client.execute(cmd)
+
+
+def takeover(password, configs: List[NodeConfig]):
+    """  
+        Takes over the observer nodes using the provided password and node configurations.
+        
+        Parameters:
+            password (str): The password to authenticate with the observer nodes.
+            configs (List[NodeConfig]): A list of node configurations, each containing the node's IP, work directory, OBShell port, and other relevant information.
+            
+        Returns:
+            bool: Returns True if the takeover is successful, otherwise raises an exception.
+        
+        Process:
+            1. Attempts to connect to each SSH client.
+            2. Iterates over the node configurations and starts the OBShell on each node using the provided password and configuration details.
+            3. If starting the OBShell fails on any node, raises an exception with the node's IP and the error message.
+            4. Ensures all SSH clients are closed after the takeover process, regardless of whether it was successful or not.
+    """
+    logger.debug('takeover observer...')
+    ssh_clients = {config.ip: SshClient(config) for config in configs}
+    try:
+        for ssh_client in ssh_clients.values():
+            ssh_client.connect()
+
+        # stop obshell
+        for config in configs:
+            _stop_obshell(ssh_clients[config.ip], config.work_dir)
+
+        for config in configs:
+            ret = _start_obshell(ssh_clients[config.ip], config.work_dir, config.ip, config.obshell_port, password)
+            if not ret:
+                raise Exception('Failed to takeover %s observer: %s' % (config.ip, ret.stderr))
+        
+        times = 60
+        while times:
+            try:
+                time.sleep(10)
+                times -= 1
+                count = 0
+                for config in configs:
+                    client = ClientSet(config.ip, config.obshell_port, auth=PasswordAuth(password))
+                    info = client.v1.get_status() 
+                    if info.agent.identity == Agentidentity.TAKE_OVER_MASTER.value:
+                        dag = client.v1.get_agent_last_maintenance_dag()
+                        logger.debug('find takeover observer dag %s, wait...' % dag.generic_id)
+                        client.v1.wait_dag_succeed(dag.generic_id)
+                        count = len(configs)
+                        break
+                    elif info.agent.identity == Agentidentity.CLUSTER_AGENT.value:
+                        count += 1
+                if count == len(configs):
+                    logger.debug('takeover observer success')
+                    return True
+            except TaskExecuteFailedError as e:
+                logger.debug('takeover observer failed: %s, retry...' % e)
+                raise e
+            except Exception as e:
+                if times:
+                    logger.debug('takeover observer failed: %s, retry...' % e)
+                    continue
+                else:
+                    raise e
+    finally:
+        for ssh_client in ssh_clients.values():
+            ssh_client.close()
