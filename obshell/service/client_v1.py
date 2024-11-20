@@ -236,6 +236,7 @@ class ClientV1(Client):
 
         Returns:
             Task detail as task.DagDetailDTO.
+            return None if the agent is not in the uninitialized cluster.
 
         Raises:
             OBShellHandleError: error message return by OBShell server.
@@ -256,7 +257,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.remove(ip, port)
-        return self.wait_dag_succeed(dag.generic_id)
+        return None if dag is None else self.wait_dag_succeed(dag.generic_id)
 
     def config_observer(self,
                         configs: dict,
@@ -1138,6 +1139,7 @@ class ClientV1(Client):
 
         Returns:
             Task detail as task.DagDetailDTO.
+            Return None if tenant not exist.
 
         Raises:
             OBShellHandleError: error message return by OBShell server.
@@ -1237,6 +1239,7 @@ class ClientV1(Client):
 
         Returns:
             Task detail as task.DagDetailDTO.
+            Return None if there is no replica on zones.
 
         Raises:
             OBShellHandleError: error message return by OBShell server.
@@ -1244,7 +1247,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.delete_tenant_replica(tenant_name, zones)
-        return self.wait_dag_succeed(dag.generic_id)
+        return None if dag is None else self.wait_dag_succeed(dag.generic_id)
 
     def modify_tenant_replica(self, tenant_name: str, zone_list: List[tenant.ModifyReplicaParam]) -> task.DagDetailDTO:
         """Modifies tenant replicas.
@@ -1423,7 +1426,7 @@ class ClientV1(Client):
             f"/api/v1/recyclebin/tenant/{object_or_original_name}", "DELETE")
         return self.__handle_task_ret_request(req)
 
-    def purge_recyclebin_tenant_sync(self, object_or_original_name: str) -> bool:
+    def purge_recyclebin_tenant_sync(self, object_or_original_name: str) -> task.DagDetailDTO:
         """Purges the tenant in recyclebin synchronously.
 
         Args:
@@ -1433,7 +1436,8 @@ class ClientV1(Client):
                 The resource of the tenant won't be recycled.
 
         Returns:
-            bool: True if success.
+            Task detail as task.DagDetailDTO.
+            Return None if the tenant not exist in recyclebin.
 
         Raises:
             OBShellHandleError: Error message return by OBShell server.
