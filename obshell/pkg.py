@@ -15,11 +15,107 @@
 
 
 import os
+import re
 from typing import Dict, Tuple, List
 
 import rpmfile
 
 from obshell.log import logger
+
+
+class Version(str):
+
+    def __init__(self, bytes_or_buffer, encoding=None, errors=None):
+        super(Version, self).__init__()
+
+    @property
+    def __cmp_value__(self):
+        return [(int(_i), _s) for _i, _s in re.findall('(\d+)([^\._]*)', self.__str__())]
+
+    def __eq__(self, value):
+        if value is None:
+            return False
+        return self.__cmp_value__ == self.__class__(value).__cmp_value__
+
+    def __gt__(self, value):
+        if value is None:
+            return True
+        return self.__cmp_value__ > self.__class__(value).__cmp_value__
+
+    def __ge__(self, value):
+        if value is None:
+            return True
+        return self.__eq__(value) or self.__gt__(value)
+
+    def __lt__(self, value):
+        if value is None:
+            return False
+        return self.__cmp_value__ < self.__class__(value).__cmp_value__
+
+    def __le__(self, value):
+        if value is None:
+            return False
+        return self.__eq__(value) or self.__lt__(value)
+
+
+class Release(Version):
+
+    @property
+    def __cmp_value__(self):
+        m = re.search('(\d+)', self.__str__())
+        return int(m.group(0)) if m else -1
+
+    def simple(self):
+        m = re.search('(\d+)', self.__str__())
+        return m.group(0) if m else ""
+
+
+class PackageInfo(object):
+
+    def __init__(self, name, version, release, arch, md5, size):
+        self.name = name
+        self.set_version(version)
+        self.set_release(release)
+        self.arch = arch
+        self.md5 = md5
+        self.size = size
+
+    def set_version(self, version):
+        self.version = Version(str(version) if version else '')
+
+    def set_release(self, release):
+        self.release = Release(str(release) if release else '')
+
+    @property
+    def __cmp_value__(self):
+        return [self.version, self.release]
+
+    def __hash__(self):
+        return hash(self.md5)
+
+    def __eq__(self, value):
+        if value is None:
+            return False
+        return self.md5 == value.md5
+
+    def __ne__(self, value):
+        return not self.__eq__(value)
+
+    def __gt__(self, value):
+        return value is None or self.__cmp_value__ > value.__cmp_value__
+    
+    def __ge__(self, value):
+        return value is None or self.__eq__(value) or self.__cmp_value__ >= value.__cmp_value__
+
+    def __lt__(self, value):
+        if value is None:
+            return False
+        return self.__cmp_value__ < value.__cmp_value__
+
+    def __le__(self, value):
+        if value is None:
+            return False
+        return self.__eq__(value) or self.__cmp_value__ <= value.__cmp_value__
 
 
 class ExtractFile(object):

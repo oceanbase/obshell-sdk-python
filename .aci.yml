@@ -49,6 +49,12 @@ jobs:
 
         rm "$temp_file"
 
+        # delete the file which is not nessary to check
+        excludes=($TARGET_DIR/codeWorkspace/obshell/arch.py)
+        for exclude in "${excludes[@]}"; do
+            non_compliant_files=("${non_compliant_files[@]/$exclude}")
+        done
+
         if [ ${#non_compliant_files[@]} -ne 0 ]; then
             echo -e "\033[31mError: The following files are missing the correct copyright header:\033[0m"
             for file in "${non_compliant_files[@]}"; do
