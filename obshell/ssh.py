@@ -20,9 +20,9 @@ import time
 import tempfile
 import warnings
 import ipaddress
+from threading import Thread
 from typing import List, Dict
-from multiprocessing import cpu_count
-from multiprocessing.pool import Pool
+from multiprocessing import cpu_count, Process
 
 warnings.filterwarnings("ignore")
 
@@ -108,6 +108,15 @@ MAX_PARALLER = cpu_count() * 4 if cpu_count() else 8
 MAX_SIZE = 100
 MIN_SIZE = 20
 USE_RSYNC = bool(local_execute('rsync -h'))
+
+# The size of each sftp chunked transfer, default is 64M.
+# Since the maximum size of a single file in the current OB, observer, is around 450M, with 64M, it can be divided into 7-8 chunks.
+# This would require 7-8 concurrent connections, and since the default MaxSessions in the sshd configuration is 10, this value is appropriate.
+# If you want to improve the performance of sftp chunked transfer, you can reduce this value to increase the number of concurrent connections.
+# However, you will need to correspondingly increase the MaxSessions configuration on the target machine.
+CHUNK_SIZE = 1024*1024*64
+# The maximum number of parallel SFTP transfers to avoid exceeding the MaxSessions limit
+PARALLEL_SFTP_MAX = 8
 
 
 class NodeConfig:
@@ -243,13 +252,51 @@ class SshClient:
         return local_execute(cmd)
     
     def _sftp_write_file(self, context, remote_file_path, mode=0o644):
-        with self.sftp_client.open(remote_file_path, 'w') as remote_file:
-            remote_file.write(context)
+        context_size = len(context)
+        if context_size < CHUNK_SIZE:
+            with self.sftp_client.open(remote_file_path, 'w') as remote_file:
+                remote_file.write(context)
+                remote_file.flush()
+        else:
+            chunks = []
+            try:
+                threads : List[Thread] = []
+                for idx in range(0, len(context), CHUNK_SIZE):
+                    if idx/CHUNK_SIZE/PARALLEL_SFTP_MAX > 0 and idx/CHUNK_SIZE%PARALLEL_SFTP_MAX == 0:
+                        # Wait for the completion of the previous batch of sftp operations
+                        for thread in threads:
+                            thread.join()
+                    chunk = (self.config, remote_file_path, idx, context[idx:idx+CHUNK_SIZE])
+                    thread = Thread(target=write_chunk, args=chunk)
+                    thread.start()
+                    threads.append(thread)
+                    chunks.append(chunk)
+                for thread in threads:
+                    thread.join()
+            except Exception as e:
+                self.execute('rm -f %s.*' % remote_file_path)
+                raise e
+            
+            for chunk in chunks:
+                ret = self.execute('cat %s.%s >> %s; rm -f %s.%s' % (remote_file_path, chunk[2], remote_file_path, remote_file_path, chunk[2]))
+                if not ret:
+                    raise Exception('Failed to merge chunks to %s: %s' % (remote_file_path, ret.stderr))
         
         ret = self.execute('chmod %o %s' % (mode, remote_file_path))
         if not ret:
             raise Exception('Failed to chmod %o %s: %s' % (mode, remote_file_path, ret.stderr))
         return True
+
+
+def write_chunk(config, remote_file_path, idx, chunk):
+    client = SshClient(config)
+    client.connect()
+    remote_file_path = f"{remote_file_path}.{idx}"
+    logger.debug(f"write chunk {idx} to {remote_file_path}")
+    with client.sftp_client.open(remote_file_path, 'w') as remote_file:
+        remote_file.write(chunk)
+        remote_file.flush()
+    return True
 
 
 def check_remote_dir_empty(client: SshClient, work_dir: str):
@@ -382,10 +429,6 @@ class WriteFilesWorker(object):
                 return False
         logger.debug('worker %s cost %s' % (self.id, time.time()-start))
         return True
-    
-
-def write_files(worker: WriteFilesWorker):
-    return worker()
 
 
 def write_files_to_servers(ssh_clients: Dict[str, SshClient] , configs: List[NodeConfig], files: List[ExtractFile]):
@@ -407,8 +450,13 @@ def write_files_to_servers(ssh_clients: Dict[str, SshClient] , configs: List[Nod
             - Exception: If file copying between nodes fails.    
     """
     # wirtes files to primary node
+    processes : List[Process] = []
     for clients in ssh_clients.values():
-        paraller_write_files(clients.config, files)
+        proc = Process(target=paraller_write_files, args=(clients.config, files))
+        proc.start()
+        processes.append(proc)
+    for proc in processes:
+        proc.join()
 
     # Copy installed files from one node to other nodes on the same machine to improve installation efficiency.
     for config in configs:
@@ -463,14 +511,15 @@ def paraller_write_files(config: NodeConfig, files: List[ExtractFile]):
         worker.add_file(file)
         workers = sorted(workers, key=lambda w: w.size)
 
+    threads : List[Thread] = []
     for worker in workers:
         logger.debug('worker %s size %s' % (worker.id, worker.size))
+        thread = Thread(target=worker)
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
 
-    pool = Pool(processes=paraller)
-    results = pool.map(write_files, workers)
-    for r in results:
-        if not r:
-            raise Exception('Failed to write files to %s' % config.ip)
     return True
 
 
