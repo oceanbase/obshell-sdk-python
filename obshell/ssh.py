@@ -20,8 +20,9 @@ import time
 import tempfile
 import warnings
 import ipaddress
+import re
 from threading import Thread
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from multiprocessing import cpu_count, Process
 
 warnings.filterwarnings("ignore")
@@ -297,6 +298,240 @@ def write_chunk(config, remote_file_path, idx, chunk):
         remote_file.write(chunk)
         remote_file.flush()
     return True
+
+
+class CheckItem:
+    def __init__(self, message : str, suggest : str) -> None:
+        self.message = message
+        self.suggest = suggest
+
+
+def check_nodes(configs: List[NodeConfig]) -> Tuple[List[CheckItem], List[CheckItem]]:
+    errors : List[CheckItem] = []
+    warns : List[CheckItem] = []
+
+    ssh_clients = {config.ip: SshClient(config) for config in configs}
+    server_num = len(ssh_clients)
+    try:
+        for ssh_client in ssh_clients.values():
+            if not check_nodes_ssh(ssh_client):
+                errors.append(CheckItem('unable to access node with ssh.', 'please check username/password or configure password free login.'))
+                return errors, warns
+            if check_nodes_firewalld(ssh_client):
+                errors.append(CheckItem('the firewalld service is up.', 'please stop the firewalld service.'))
+            if check_nodes_selinux(ssh_client):
+                errors.append(CheckItem('the selinux is not Disabled.', 'please disabled the selinux.'))
+            if check_nodes_clock(ssh_client):
+                errors.append(CheckItem('clock not sync.', 'please sync clock.'))
+            ret_kernel_suggests = check_nodes_kernel_params(ssh_client)
+            if len(ret_kernel_suggests) > 0:
+                for suggest in ret_kernel_suggests:
+                    errors.append(CheckItem(suggest, ''))
+            ret_ulimit_suggests = check_nodes_ulimit_params(ssh_client, server_num)
+            if len(ret_ulimit_suggests) > 0:
+                for suggest in ret_ulimit_suggests:
+                    errors.append(CheckItem(suggest, ''))
+            if check_nodes_user(ssh_client):
+                warns.append(CheckItem('the current user is root.', 'suggest deploying using non root users.'))
+            
+    except Exception as e:
+        errors.append(CheckItem(e))
+        return errors, warns
+    finally:
+        for ssh_client in ssh_clients.values():
+            ssh_client.close()
+    return errors, warns
+
+
+def check_nodes_ssh(client: SshClient):
+    try:
+        client.connect()
+    except Exception as e:
+        logger.debug(f"Error ssh connect: {e}")
+        return False
+    return True
+
+
+def check_nodes_clock(client: SshClient):
+    hostname = socket.gethostname()
+    ipaddr = socket.gethostbyname(hostname)
+    ret = client.execute(f"sudo /usr/sbin/clockdiff -o {ipaddr}")
+    clockdiff = abs(int(ret.stdout.split(" ")[1]))
+    if clockdiff/1000 > 2:
+        return True
+    else:
+        return False
+
+
+def check_nodes_firewalld(client: SshClient):
+    try:
+        os_type = get_remote_linux_type(client)
+        if not os_type:
+            logger.debug("unknown system type")
+            return True
+        elif 'ubuntu' in os_type or 'debian' in os_type:
+            # Assume Ubuntu or Debian uses UFW
+            ret = client.execute('ufw status')
+            if 'Status: active' in ret.stdout:
+                return True
+        elif 'fedora' in os_type or 'centos' in os_type or 'redhat' in os_type:
+            # Assume Fedora, CentOS, or RedHat uses firewalld
+            ret = client.execute('systemctl status firewalld')
+            if 'Active: active' in ret.stdout:
+                return True
+        else:
+            # For other Linux distributions, default to checking iptables
+            output = client.execute('iptables -L -n')
+            if 'Chain INPUT' in output and 'Chain FORWARD' in output and 'Chain OUTPUT' in output:
+                return True
+    except Exception as e:
+        logger.debug(f"Error check firewalld: {e}")
+        raise True
+    return False
+
+
+def get_remote_linux_type(client: SshClient):
+    try:
+        ret = client.execute('cat /etc/os-release')
+        if ret.stderr:
+            logger.debug(f"Error reading /etc/os-release: {ret.stderr}")
+            return None
+        for line in ret.stdout.splitlines():
+            if line.startswith('ID='):
+                system_type = line.split('=')[1].strip('"')
+                return system_type
+        return None
+    except Exception as e:
+        logger.debug(f"An error occurred: {e}")
+        return None
+
+
+def check_nodes_selinux(client: SshClient):
+    try:
+        ret = client.execute('/usr/sbin/getenforce')
+        if 'Disabled' in ret.stdout or 'Permissive' in ret.stdout:
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.debug(f"An error occurred: {e}")
+        return True
+
+
+def check_nodes_kernel_params(client: SshClient):
+    INF = float('inf')
+
+    kernel_check_items = [
+        {'check_item': 'vm.max_map_count', 'need': [327600, 1310720], 'recommend': 655360},
+        {'check_item': 'vm.min_free_kbytes', 'need': [32768, 2097152], 'recommend': 2097152},
+        {'check_item': 'vm.overcommit_memory', 'need': 0, 'recommend': 0},
+        {'check_item': 'fs.file-max', 'need': [6573688, INF], 'recommend': 6573688},
+    ]
+    
+    # check kernel params
+    try:
+        cmd = 'sudo /usr/sbin/sysctl -a'
+        ret = client.execute(cmd)
+        if not ret:
+            logger.debug(f"sysctl -a command error!")
+        kernel_params = {}
+        kernel_param_src = ret.stdout.split('\n')
+        for kernel in kernel_param_src:
+            if not kernel:
+                continue
+            kernel = kernel.split('=')
+            kernel_params[kernel[0].strip()] = re.findall(r"[-+]?\d+", kernel[1])
+        ret_suggests = []
+        for kernel_param in kernel_check_items:
+            check_item = kernel_param['check_item']
+            if check_item not in kernel_params:
+                continue
+            values = kernel_params[check_item]
+            needs = kernel_param['need']
+            recommends = kernel_param['recommend']
+            for i in range(len(values)):
+                # This case is not handling the value of 'default'. Additional handling is required for 'default' in the future.
+                item_value = int(values[i])
+                need = needs[i] if isinstance(needs, tuple) else needs
+                recommend = recommends[i] if isinstance(recommends, tuple) else recommends
+                if isinstance(need, list):
+                    if item_value < need[0] or item_value > need[1]:
+                        suggest = ' '.join(str(i) for i in recommend) if isinstance(recommend, list) else recommend
+                        need = 'within {}'.format(needs) if needs[-1] != INF else 'greater than {}'.format(needs[0])
+                        now = '[{}]'.format(', '.join(values)) if len(values) > 1 else item_value
+                        ret_suggests.append(f"{client.config.ip} -> {check_item} current value: {now}, recommend: {suggest}")
+                elif item_value != need:
+                    ret_suggests.append(f"{client.config.ip} -> {check_item} current value: {item_value}, recommend: {recommend}")
+        return ret_suggests
+    except Exception as e:
+        logger.debug(f"check kernel params error: {e}")
+
+
+def check_nodes_ulimit_params(client: SshClient, server_num: int):
+    INF = float('inf')
+
+    ulimits_min = {
+        'open files': {
+            'need': lambda x: 20000 * x,
+            'recd': lambda x: 655350,
+            'name': 'nofile'
+        },
+        'max user processes': {
+            'need': lambda x: 120000,
+            'recd': lambda x: 655350,
+            'name': 'nproc'
+        },
+        'core file size': {
+            'need': lambda x: 0,
+            'recd': lambda x: INF,
+            'below_need_error': False,
+            'below_recd_error_strict': False,
+            'name': 'core'
+        },
+        'stack size': {
+            'need': lambda x: 1024,
+            'recd': lambda x: INF,
+            'below_recd_error_strict': False,
+            'name': 'stack'
+        },
+    }
+
+    try:
+        ret = client.execute('ulimit -a')
+        ulimits = {}
+        src_data = re.findall('\s?([a-zA-Z\s]+[a-zA-Z])\s+\([a-zA-Z\-,\s]+\)\s+([\d[a-zA-Z]+)', ret.stdout) if ret else []
+        for key, value in src_data:
+            ulimits[key] = value
+        ret_suggests = []
+        for key in ulimits_min:
+            value = ulimits.get(key)
+            if value == 'unlimited':
+                continue
+            if not value or not (value.strip().isdigit()):
+                return f"{client.config.ip} -> failed to get {key}"
+            else:
+                value = int(value)
+                need = ulimits_min[key]['need'](server_num)
+                if need > value:
+                    if ulimits_min[key].get('below_recd_error_strict', True) and value < ulimits_min[key]['recd'](server_num):
+                        need = ulimits_min[key]['recd'](server_num)
+                    need = need if need != INF else 'unlimited'
+                    ret_suggests.append(f"{client.config.ip} -> {key}({ulimits_min[key]['name']}) current value: {value}, recommend: {need}")
+                else:
+                    need = ulimits_min[key]['recd'](server_num)
+                    if need > value:
+                        need = need if need != INF else 'unlimited'
+                        ret_suggests.append(f"{client.config.ip} -> {key}({ulimits_min[key]['name']}) current value: {value}, recommend: {need}")
+        return ret_suggests
+    except Exception as e:
+        logger.debug(f"check ulimit params error: {e}")
+
+
+def check_nodes_user(client: SshClient):
+    if "root" == client.config.username:
+        return True
+    else:
+        return False
 
 
 def check_remote_dir_empty(client: SshClient, work_dir: str):
