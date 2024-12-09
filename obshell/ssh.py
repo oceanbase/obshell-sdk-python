@@ -381,8 +381,8 @@ def check_nodes_firewalld(client: SshClient):
                 return True
         else:
             # For other Linux distributions, default to checking iptables
-            output = client.execute('iptables -L -n')
-            if 'Chain INPUT' in output and 'Chain FORWARD' in output and 'Chain OUTPUT' in output:
+            ret = client.execute('iptables -L -n')
+            if 'Chain INPUT' in ret.stdout and 'Chain FORWARD' in ret.stdout and 'Chain OUTPUT' in ret.stdout:
                 return True
     except Exception as e:
         logger.debug(f"Error check firewalld: {e}")
