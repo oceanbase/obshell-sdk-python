@@ -196,8 +196,34 @@ class Mirror:
     def get_local_url(self, location: dict) -> str:
         base_url = location.get('base', self.url)
         return base_url + location['href']
-
+    
     def search(self, name: str, version: str = None, release: str = None) -> List[RemotePackageInfo]:
+        """
+            Search for a package by name, version, and release.
+            
+            This method searches for packages that match the given name, version, and release information.
+            If no matching packages are found, it raises an exception.
+            
+            Parameters:
+                name (str): The name of the package to search for.
+                version (str, optional): The version of the package to search for. Defaults to `None`.
+                release (str, optional): The release information of the package to search for. Defaults to `None`.
+            
+            Returns:
+            
+                List[RemotePackageInfo]: A list of matching packages, represented as `RemotePackageInfo` objects.
+                
+            Raises:
+                Exception: If no matching package is found, an exception is raised with a message indicating
+                the requested package name, version, and release.
+            
+            """
+        matchs = self._search(name, version, release)
+        if not matchs:
+            raise Exception(f"No such package: {name}-{version}-{release}")
+        return matchs
+
+    def _search(self, name: str, version: str = None, release: str = None) -> List[RemotePackageInfo]:
         packages = self.get_packages()
         version = Version(version) if version else None
         release = Release(release) if release else None
@@ -212,18 +238,35 @@ class Mirror:
             if self.no_lse and 'nonlse' not in package.release:
                 continue
             matchs.append(package)
-        if not matchs:
-            raise Exception(f"No such package: {name}-{version}-{release}")
         return sorted(matchs, key=lambda pkg: (pkg.version, pkg.release), reverse=True)
     
     def download(self, dest_dir: str, name: str, version: str = None, release: str = None) -> str:
-        packages = self.search(name, version, release)
-        if packages:
-            package = packages[0]
-            return self.download_package(package, dest_dir)
-        raise Exception(f"No such package: {name}-{version}-{release}")
+        """
+            Download a specified package to the destination directory.
+        
+            This method searches for a package that matches the given name, version, and release information,
+            and downloads it to the specified destination directory. The `search` method will raise an
+            exception if no matching package is found, so there is no need to explicitly check for matches
+            in this function.
+        
+        Parameters:
+            dest_dir (str): The path of the directory to download the file to.
+            name (str): The name of the package to be downloaded.
+            version (str, optional): The version of the package to be downloaded. Defaults to `None`.
+            release (str, optional): The release information of the package to be downloaded. Defaults to `None`.
+        
+        Returns:
+            str: The file path of the downloaded package. 
+        
+        Exceptions: 
+            An exception will be raised by the `search` method if no matching package is found.
+        """
+        package = self.search(name, version, release)[0]
+        return self._download_package(package, dest_dir)
     
-    def download_package(self, package: RemotePackageInfo, dest_dir: str) -> str:
+    def _download_package(self, package: RemotePackageInfo, dest_dir: str) -> str:
+        if not os.path.isabs(dest_dir):
+            raise Exception(f"Destination is not an absolute path: {dest_dir}")
         if not os.path.exists(dest_dir):
             os.makedirs(dest_dir)
         else:
@@ -287,10 +330,10 @@ def search_package(name: str, version: str = None, release: str = None) -> List[
         :return: A list of RemotePackageInfo objects representing the found packages, or an empty list if not found. """
     '''
     for mirror in MIRRORS:
-        packages = mirror.search(name, version, release)
+        packages = mirror._search(name, version, release)
         if packages:
             return packages
-    return []
+    raise Exception(f"No such package: {name}-{version}-{release}")
 
 
 def download_package(dest_dir: str, name: str, version: str = None, release: str = None):
@@ -308,9 +351,9 @@ def download_package(dest_dir: str, name: str, version: str = None, release: str
         :raises Exception: If no matching package is found in any of the mirrors.
     '''
     for mirror in MIRRORS:
-        packages = mirror.search(name, version, release)
+        packages = mirror._search(name, version, release)
         if packages:
             package = packages[0]
-            return mirror.download_package(package, dest_dir)
+            return mirror._download_package(package, dest_dir)
     raise Exception(f"No such package: {name}-{version}-{release}")
 
