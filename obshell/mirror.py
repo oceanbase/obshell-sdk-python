@@ -212,6 +212,8 @@ class Mirror:
             if self.no_lse and 'nonlse' not in package.release:
                 continue
             matchs.append(package)
+        if not matchs:
+            raise Exception(f"No such package: {name}-{version}-{release}")
         return sorted(matchs, key=lambda pkg: (pkg.version, pkg.release), reverse=True)
     
     def download(self, dest_dir: str, name: str, version: str = None, release: str = None) -> str:
@@ -222,6 +224,11 @@ class Mirror:
         raise Exception(f"No such package: {name}-{version}-{release}")
     
     def download_package(self, package: RemotePackageInfo, dest_dir: str) -> str:
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+        else:
+            if not os.path.isdir(dest_dir):
+                raise Exception(f"Destination is not a directory: {dest_dir}")
         file_name = package.location[1]
         file_path = os.path.join(dest_dir, file_name)
         base_url = package.location[0] if package.location[0] else self.url
