@@ -152,10 +152,10 @@ class RemotePackageInfo(PackageInfo):
 
 class Mirror:
 
-    def __init__(self, name: str, url: str, no_lse: Optional[bool] = None):
+    def __init__(self, name: str, url: str, non_lse: Optional[bool] = None):
         self.name = name
         self.url = url
-        self.no_lse = no_lse
+        self.non_lse = non_lse
         self._repomds : List[RepoData] = None
         self._primary_repomd : RepoData = None
         self._packages : List[RemotePackageInfo] = None
@@ -235,10 +235,8 @@ class Mirror:
                 continue
             if release and package.release != release:
                 continue
-            if self.no_lse and 'nonlse' not in package.release:
-                continue
             matchs.append(package)
-        return sorted(matchs, key=lambda pkg: (pkg.version, pkg.release), reverse=True)
+        return sorted(matchs, key=lambda pkg: (pkg.version, pkg.release, self.non_lse and 'nonlse' in pkg.release), reverse=True)
     
     def download(self, dest_dir: str, name: str, version: str = None, release: str = None) -> str:
         """
@@ -287,7 +285,7 @@ ARCH = getBaseArch()
 version = os.popen("ldd --version").read()
 match = re.search(r'ldd\s+(\d+\.\d+)', version)
 RELEASE = EL8 if match and match.group(1) >= "2.28" else EL7
-NO_LSE = ARCH == 'aarch64' and not os.popen("grep atomics /proc/cpuinfo ").read()
+NON_LSE = ARCH == 'aarch64' and not os.popen("grep atomics /proc/cpuinfo ").read()
     
 
 class BaseMirror:
@@ -296,15 +294,15 @@ class BaseMirror:
         self.name = name
         self.base_url = base_url
 
-    def get_mirror(self, arch: str, release: str, no_lse: bool = None) -> Mirror:
+    def get_mirror(self, arch: str, release: str, non_lse: bool = None) -> Mirror:
         url = self.base_url.replace("$releasever", release).replace("$basearch", arch)
         name = self.name.replace("$releasever", release).replace("$basearch", arch)
         mirror = Mirror(name=name, url=url)
         if arch == "aarch64":
-            if no_lse is not None:
-                mirror.no_lse = no_lse
+            if non_lse is not None:
+                mirror.non_lse = non_lse
             else:
-                mirror.no_lse = NO_LSE
+                mirror.non_lse = NON_LSE
         return mirror
 
 
