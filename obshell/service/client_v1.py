@@ -664,11 +664,19 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: error message return by OBShell server.
         """
-        req = self.create_request("/api/v1/upgrade/package", "POST")
         data, headers = self._parse_pkg(pkg_path)
-        req.data = data
-        req.headers = headers
-        return self._handle_ret_request(req, UpgradePkgInfo)
+        auth = self._get_auth()
+        try:
+            if auth.type == AuthType.PASSWORD:
+                copied_auth = copy.deepcopy(auth)
+                copied_auth.lifetime = 600
+                self._set_auth(copied_auth)
+            req = self.create_request("/api/v1/upgrade/package", "POST")
+            req.data = data
+            req.headers = headers
+            self._handle_ret_request(req, UpgradePkgInfo)
+        finally:
+            self._set_auth(auth)
 
     def upgrade_agent_check(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -2309,17 +2317,17 @@ class ClientV1(Client):
         return self._handle_ret_request(req, ob.RestoreOverview)
 
     def get_restore_windows(
-        self, 
-        data_backup_uri: str, 
+        self,
+        data_backup_uri: str,
         archive_log_uri: str = None,
-        ):
+    ):
         """Get windows during which the tenant can be restored.
-        
+
         Args:
             data_backup_uri (str): Complete destination path for data backups.
             archive_log_uri (str, optional): Destination path for log archives.
         """
-        
+
         data = {
             'data_backup_uri': data_backup_uri,
         }

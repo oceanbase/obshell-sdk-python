@@ -34,7 +34,7 @@ from obshell.info import get_public_key, get_info
 class PasswordAuth(base.Auth):
     """Password-based authentication method."""
 
-    def __init__(self, password: str = "", version=None) -> None:
+    def __init__(self, password: str = "", version=None, lifetime=60) -> None:
         """Initialize a new PasswordAuth instance.
 
         Args:
@@ -49,10 +49,14 @@ class PasswordAuth(base.Auth):
 
                 - "v1": supported by OBShell version 4.2.2.0.
                 - "v2": supported by OBShell version 4.2.3.0 or later.
+            lifetime (int, optional): 
+                lifetime of the authentication information in reqeust header.
+                Defalut to 60 second.
         """
         super().__init__(base.AuthType.PASSWORD,
                          [base.AuthVersion.V1, base.AuthVersion.V2])
         self.password = password
+        self.lifetime = lifetime
         if version is not None:
             if version not in _AUTHS_VERSION:
                 raise ValueError("Version not supported")
@@ -63,15 +67,16 @@ class PasswordAuth(base.Auth):
             version = self.get_version()
             if version not in _AUTHS:
                 raise base.AuthError(f"Unsupported auth version: {version}")
-            self._method = _AUTHS[version](self.password)
+            self._method = _AUTHS[version](self.password, self.lifetime)
         self._method.auth(request)
 
 
 class PasswordAuthMethod:
 
-    def __init__(self, password: str) -> None:
+    def __init__(self, password: str, lifetime: int) -> None:
         self.password = password
         self.pk = None
+        self.lifetime = lifetime
         self.check_identity = False
 
     def reset(self) -> None:
@@ -99,7 +104,7 @@ class PasswordAuthMethodV1(PasswordAuthMethod):
         self._check(req.server)
         self._init_pk(req.server)
         auth_json = json.dumps(
-            {'password': self.password, 'ts': int(time.time()) + 5})
+            {'password': self.password, 'ts': int(time.time() + self.lifetime)})
         key = RSA.import_key(base64.b64decode(self.pk))
         cipher = PKCS1_cipher.new(key)
         req.headers['X-OCS-Auth'] = base64.b64encode(
@@ -132,22 +137,13 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
     def auth(self, req: requests.Request) -> None:
         self._check(req.server)
         self._init_pk(req.server)
+
+        # encrypt body before build header.
         aes_key = get_random_bytes(16)
         aes_iv = get_random_bytes(16)
-        uri = urlparse(req.url).path if not urlparse(
-            req.url).query else urlparse(req.url).path + "?" + urlparse(req.url).query
-        headers = {
-            'auth': self.password,
-            'ts': str(int(time.time()) + 5),
-            'uri': uri,
-            'keys': base64.b64encode(aes_key+aes_iv).decode('utf-8')
-        }
-        req.headers['X-OCS-Header'] = self.encrypt_header(headers)
-
         cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
         if not req.original_data:
             req.original_data = req.data
-
         if req.original_data:
             body = None
             if isinstance(req.original_data, dict):
@@ -162,6 +158,16 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
             req.data = base64.b64encode(
                 cipher.encrypt(pad(bytes(body), AES.block_size))
             ).decode('utf8')
+
+        uri = urlparse(req.url).path if not urlparse(
+            req.url).query else urlparse(req.url).path + "?" + urlparse(req.url).query
+        headers = {
+            'auth': self.password,
+            'ts': str(int(time.time()) + self.lifetime),
+            'uri': uri,
+            'keys': base64.b64encode(aes_key+aes_iv).decode('utf-8')
+        }
+        req.headers['X-OCS-Header'] = self.encrypt_header(headers)
         return
 
 
