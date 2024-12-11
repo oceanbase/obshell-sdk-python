@@ -103,6 +103,7 @@ def is_local_ip(ip):
     return ipaddress.ip_address(ip) in local_ips
 
 
+_FLAG_ROOT_PWD = "password"
 USER = getpass.getuser()
 MAX_PARALLER = cpu_count() * 4 if cpu_count() else 8
 MAX_SIZE = 100
@@ -591,7 +592,11 @@ def _start_obshell(client: SshClient, work_dir: str, ip: str, obshell_port: int,
     logger.debug('start obshell %s:%s' % (ip, obshell_port))
     cmd = '%s/bin/obshell admin start --ip %s --port %s' % (work_dir, ip, obshell_port)
     if password is not None:
-        cmd = "export OB_ROOT_PASSWORD=%s; %s" % (password, cmd)
+        password = "'{}'".format(password.replace("'", "'\"'\"'"))
+        if client.execute("%s/bin/obshell admin start -h | grep %s" % (work_dir, _FLAG_ROOT_PWD)):
+            cmd = "%s --%s=%s" % (cmd, _FLAG_ROOT_PWD, password)
+        else:
+            cmd = "export OB_ROOT_PASSWORD=%s; %s" % (password, cmd)
     return client.execute(cmd)
 
 
