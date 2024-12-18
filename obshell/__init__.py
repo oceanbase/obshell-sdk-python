@@ -16,7 +16,7 @@
 from .service.client_set import ClientSet
 from .service.client_v1 import TaskExecuteFailedError, OBShellHandleError, IllegalOperatorError
 from .service.client_v1 import IllegalOperatorError, ClientV1
-from .ssh import NodeConfig, initialize_nodes, start_obshell, check_nodes
+from .ssh import NodeConfig, initialize_nodes, start_obshell, install_obshell, takeover
 from .mirror import search_package, download_package
 
 __all__ = ('ClientSet', 'TaskExecuteFailedError',

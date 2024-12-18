@@ -373,7 +373,7 @@ class ClientV1(Client):
         use init_sync to initialize synchronously instead.
 
         Args:
-            import_script (bool, optional): 
+            import_script (bool, optional):
                 Whether need to import the observer's script. Defaults to False.
                 Support from OBShell V4.2.4.2.
 
@@ -560,6 +560,96 @@ class ClientV1(Client):
         dag = self.scale_out(ip, port, zone, ob_configs)
         return self.wait_dag_succeed(dag.generic_id)
 
+    def scale_in(self, ip: str, port: int = 2886, force_kill: bool = False) -> task.DagDetailDTO:
+        """Delete the target server from the cluster.
+
+        Args:
+            ip (str): The ip of the target server.
+            port (int, optional): The port of the target server. Defaults to 2886.
+            force_kill (bool, optional):
+                Whether to forcely kill the observer before deleting the observer.
+                Only set to True when the observer is fault.
+                Defaults to False.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        req = self.create_request("/api/v1/ob/scale_in", "POST",
+                                  data={
+                                      "agent_info": {"ip": ip, "port": port},
+                                      "force_kill": force_kill
+                                  })
+        return self.__handle_task_ret_request(req)
+
+    def scale_in_sync(self, ip: str, port: int = 2886, force_kill: bool = False) -> task.DagDetailDTO:
+        """Delete the target server from the cluster synchronously.
+
+        Args:
+            ip (str): The ip of the target server.
+            port (int, optional): The port of the target server. Defaults to 2886.
+            force_kill (bool, optional):
+                Whether to forcely kill the observer before deleting the observer.
+                Only set to True when the observer is fault.
+                Defaults to False.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs.
+        """
+        dag = self.scale_in(ip, port, force_kill)
+        if dag is None:
+            return None
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_zone(self, zone_name: str) -> task.DagDetailDTO:
+        """Deletes a zone from the cluster.
+
+        Please make sure the zone hold no unit before deleting it.
+
+        Args:
+            zone_name (str): The name of the zone.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs. 
+        """
+        req = self.create_request(f"/api/v1/zone/{zone_name}", "DELETE")
+        return self.__handle_task_ret_request(req)
+
+    def delete_zone_sync(self, zone_name: str) -> task.DagDetailDTO:
+        """Deletes a zone from the cluster synchronously.
+
+        Please make sure the zone hold no unit before deleting it.
+
+        Args:
+            zone_name (str): The name of the zone.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message return by OBShell server.
+            TaskExecuteFailedError: raise when the task failed,
+                include the failed task detail and logs. 
+        """
+        dag = self.delete_zone(zone_name)
+        if dag is None:
+            return None
+        return self.wait_dag_succeed(dag.generic_id)
+
     def upload_pkg(self, pkg_path: str) -> UpgradePkgInfo:
         """upload package to obcluster
 
@@ -574,11 +664,19 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: error message return by OBShell server.
         """
-        req = self.create_request("/api/v1/upgrade/package", "POST")
         data, headers = self._parse_pkg(pkg_path)
-        req.data = data
-        req.headers = headers
-        return self._handle_ret_request(req, UpgradePkgInfo)
+        auth = self._get_auth()
+        try:
+            if auth.type == AuthType.PASSWORD:
+                copied_auth = copy.deepcopy(auth)
+                copied_auth.lifetime = 600
+                self._set_auth(copied_auth)
+            req = self.create_request("/api/v1/upgrade/package", "POST")
+            req.data = data
+            req.headers = headers
+            self._handle_ret_request(req, UpgradePkgInfo)
+        finally:
+            self._set_auth(auth)
 
     def upgrade_agent_check(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -2219,17 +2317,17 @@ class ClientV1(Client):
         return self._handle_ret_request(req, ob.RestoreOverview)
 
     def get_restore_windows(
-        self, 
-        data_backup_uri: str, 
+        self,
+        data_backup_uri: str,
         archive_log_uri: str = None,
-        ):
+    ):
         """Get windows during which the tenant can be restored.
-        
+
         Args:
             data_backup_uri (str): Complete destination path for data backups.
             archive_log_uri (str, optional): Destination path for log archives.
         """
-        
+
         data = {
             'data_backup_uri': data_backup_uri,
         }
