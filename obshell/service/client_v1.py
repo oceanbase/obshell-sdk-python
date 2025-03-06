@@ -763,7 +763,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.upgrade_agent(version, release, upgrade_dir)
-        return self.wait_dag_succeed(dag.generic_id)
+        return self.wait_dag_succeed(dag.generic_id, exclude_execption_list=[requests.exceptions.ChunkedEncodingError])
 
     def upgrade_ob_check(
             self, version: str, release: str, upgrade_dir=None) -> task.DagDetailDTO:
@@ -863,7 +863,7 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.upgrade_ob(version, release, mode, upgrade_dir)
-        return self.wait_dag_succeed(dag.generic_id)
+        return self.wait_dag_succeed(dag.generic_id, exclude_execption_list=[requests.exceptions.ChunkedEncodingError])
 
     def get_dag(self, generic_id: str, show_detail=True) -> task.DagDetailDTO:
         """Gets the detail of a task(DAG).
@@ -1017,7 +1017,7 @@ class ClientV1(Client):
         req = self.create_request("/api/v1/info", "GET", need_auth=False)
         return self._handle_ret_request(req, info.AgentStatusWithZone)
 
-    def wait_dag_succeed(self, generic_id: str, retry_time=60) -> task.DagDetailDTO:
+    def wait_dag_succeed(self, generic_id: str, retry_time=60, exclude_execption_list=[]) -> task.DagDetailDTO:
         """Waits for a task(DAG) to succeed.
 
         Waits for a task(DAG) to succeed.
@@ -1025,6 +1025,7 @@ class ClientV1(Client):
         Args:
             generic_id (str): The generic_id of the task.
             retry_time (int, optional): The retry times when connection error occurs.
+            exclude_execption_list (list, optional): The exception list that will be except and retry.
 
         Returns:
             Task detail as task.DagDetailDTO.
@@ -1036,6 +1037,8 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         while True:
+            retry_exception_list = [
+                requests.exceptions.ConnectionError] + exclude_execption_list
             try:
                 dag = self.get_dag(generic_id)
                 if dag.is_succeed():
@@ -1044,7 +1047,7 @@ class ClientV1(Client):
                     logs = self._get_failed_dag_last_log(dag)
                     raise TaskExecuteFailedError(f"{logs}", dag)
                 time.sleep(3)
-            except requests.exceptions.ConnectionError as e:
+            except tuple(retry_exception_list) as e:
                 if retry_time == 0:
                     raise e
                 else:
