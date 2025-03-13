@@ -27,7 +27,7 @@ from obshell.info import get_info, get_public_key
 from obshell.client import Client
 from obshell.auth.base import OBShellVersion, AuthType
 from obshell.auth.password import PasswordAuth
-from obshell.model import ob
+from obshell.model import ob, info
 from obshell.request import BaseRequest
 from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
@@ -863,7 +863,22 @@ class ClientV1(Client):
                 include the failed task detail and logs.
         """
         dag = self.upgrade_ob(version, release, mode, upgrade_dir)
-        return self.wait_dag_succeed(dag.generic_id, exclude_execption_list=[requests.exceptions.ChunkedEncodingError])
+        retry_time = 200
+        while True:
+            try:
+                dag = self.wait_dag_succeed(dag.generic_id, exclude_execption_list=[
+                    requests.exceptions.ChunkedEncodingError])
+                return dag
+            except OBShellHandleError as e:
+                # try to get ob status
+                agent_info = self.get_status()
+                if agent_info.ob_state == info.ObState.STATE_CONNECTION_AVAILABLE:
+                    self.wait_dag_succeed(dag.generic_id)
+                else:
+                    retry_time -= 1
+                    if retry_time <= 0:
+                        raise e
+                    time.sleep(3)
 
     def get_dag(self, generic_id: str, show_detail=True) -> task.DagDetailDTO:
         """Gets the detail of a task(DAG).
@@ -1053,12 +1068,6 @@ class ClientV1(Client):
                 else:
                     time.sleep(3)
                     retry_time -= 1
-            except OBShellHandleError as e:
-                if e.code == 2300 and retry_time != 0:
-                    time.sleep(3)
-                    retry_time -= 1
-                else:
-                    raise e
 
     # Tenant API function
     def create_resource_unit_config(

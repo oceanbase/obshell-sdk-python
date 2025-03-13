@@ -21,6 +21,13 @@ from obshell.model.version import Version
 from obshell.auth.base import AuthVersion
 
 
+class ObState(Enum):
+    STATE_PROCESS_NOT_RUNNING = 0  # OB process not running
+    STATE_PROCESS_RUNNING = 1  # OB process running with no connection
+    STATE_CONNECTION_RESTRICTED = 2  # OB process running with restricted connection
+    STATE_CONNECTION_AVAILABLE = 3  # OB process running with available connection
+
+
 class AgentInfo:
 
     def __init__(self,
