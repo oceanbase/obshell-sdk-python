@@ -51,7 +51,13 @@ class Client:
 
     @property
     def server(self):
+        if self.is_ipv6:
+            return f"[{self.host}]:{self.port}"
         return f"{self.host}:{self.port}"
+
+    @property
+    def is_ipv6(self):
+        return ":" in self.host
 
     @property
     def host(self):
@@ -169,7 +175,7 @@ class Client:
 
     def __confirm_auth_version(self):
         auth = self._auth
-        agent = get_info(f"{self.host}:{self.port}")
+        agent = get_info(self.server)
         supported_auth = []
         if len(agent.supported_auth) != 0:
             supported_auth = agent.supported_auth

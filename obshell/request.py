@@ -51,5 +51,11 @@ class BaseRequest:
         return f"{self.protocol}://{self.server}{self.uri}?{urllib.parse.urlencode(self.query_param)}"
 
     @property
+    def is_ipv6(self):
+        return ":" in self.host
+
+    @property
     def server(self):
+        if self.is_ipv6:
+            return f"[{self.host}]:{self.port}"
         return f"{self.host}:{self.port}"
