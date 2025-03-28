@@ -25,15 +25,18 @@ def get_info(server: str) -> AgentInfo:
     url = f"http://{server}/api/v1/info"
     resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get version from {server}, "
+        raise Exception(f"Failed to get info from {server}, "
                         f"status code: {resp.status_code}")
     data = resp.json().get("data", {})
     if not data:
-        raise Exception(f"Failed to get version from {server}, no data")
+        raise Exception(f"Failed to get info from {server}, no data")
     identity = data.get("identity")
     version = data.get("version")
     supported_auth = data.get("supportedAuth", [])
-    info = AgentInfo(identity, version, supported_auth)
+    hold_obproxy = data.get("security", False)
+    is_obproxy_agent = data.get("isObproxyAgent", False)
+    info = AgentInfo(identity, version, supported_auth,
+                     hold_obproxy, is_obproxy_agent)
     return info
 
 
@@ -46,6 +49,6 @@ def get_public_key(server: str) -> str:
 
     data = resp.json().get("data", {})
     if not data:
-        raise Exception(f"Failed to get version from {server}, no data")
+        raise Exception(f"Failed to get info from {server}, no data")
 
     return data.get("public_key")

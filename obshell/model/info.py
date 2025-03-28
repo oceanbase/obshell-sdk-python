@@ -33,9 +33,13 @@ class AgentInfo:
     def __init__(self,
                  identity: str,
                  version: str,
-                 supported_auth: List[str]):
+                 supported_auth: List[str],
+                 security: bool = False,
+                 is_obproxy_agent: bool = False):
         self.identity = Agentidentity(identity)
         self.version = Version(version)
+        self.security = security
+        self.is_obproxy_agent = is_obproxy_agent
         self.supported_auth = [AuthVersion(version)
                                for version in supported_auth]
 
@@ -175,6 +179,8 @@ class AgentStatusWithZone:
         self.home_path = data.get("homePath", "")
         self.ip = data.get("ip", "")
         self.port = data.get("port", 0)
+        self.is_obproxy_agent = data.get("isObproxyAgent", False)
+        self.secrity = data.get("security", False)
 
     @classmethod
     def from_dict(cls, data: dict):

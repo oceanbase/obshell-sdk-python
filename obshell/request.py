@@ -25,6 +25,7 @@ class BaseRequest:
                  data: dict = None,
                  query_param: dict = None,
                  headers: dict = None,
+                 task_type: str = "ob",
                  timeout: int = 100000):
         if data is None:
             data = {}
@@ -43,6 +44,7 @@ class BaseRequest:
         self.original_data = data
         self.headers = headers
         self.timeout = timeout
+        self.task_type = task_type
 
     @property
     def url(self):

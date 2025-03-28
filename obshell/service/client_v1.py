@@ -171,13 +171,14 @@ class ClientV1(Client):
     def __handle_task_ret_request(self, req):
         return self._handle_ret_request(req, task.DagDetailDTO)
 
-    def create_request(self, uri: str, method: str, data=None, query_param=None, need_auth=True):
+    def create_request(self, uri: str, method: str, data=None, query_param=None, need_auth=True, task_type="ob"):
         return BaseRequest(uri, method,
                            self.host, self.port, query_param=query_param,
-                           data=data, need_auth=need_auth, timeout=self._timeout)
+                           data=data, need_auth=need_auth,
+                           task_type=task_type, timeout=self._timeout)
 
     # Function for OpenAPI
-    def join(self, ip: str, port: int, zone: str) -> task.DagDetailDTO:
+    def join(self, ip: str, port: int, zone: str, agent_password: str = None) -> task.DagDetailDTO:
         """Joins a new agent to the uninitialized cluster.
 
         Return as soon as request successfully.
@@ -195,21 +196,21 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: Error message return by OBShell server.
         """
-        try:
-            c = ClientV1(ip, port)
-            auth = self._get_auth()
-            c._set_auth(auth)
-            req = c.create_request("/api/v1/agent/join", "POST",
-                                   data={
-                                       "agentInfo": {"ip": self.host, "port": self.port},
-                                       "zoneName": zone
-                                   })
-            dag = c.__handle_task_ret_request(req)
-        finally:
-            auth.reset_method()
+        if self.server == f"{ip}:{port}":
+            c = self
+        else:
+            c = ClientV1(ip, port, PasswordAuth(agent_password=agent_password))
+        req = c.create_request("/api/v1/agent/join", "POST",
+                               data={
+                                   "agentInfo": {"ip": self.host, "port": self.port},
+                                   "zoneName": zone,
+                                   "masterPassword": self._auth.agent_password
+                               })
+        dag = c.__handle_task_ret_request(req)
+        self._auth.reset_method()
         return dag
 
-    def join_sync(self, ip: str, port: int, zone: str) -> task.DagDetailDTO:
+    def join_sync(self, ip: str, port: int, zone: str, agent_password: str = None) -> task.DagDetailDTO:
         """Joins a new agent to the uninitialized cluster synchronously.
 
         Seealso join.
@@ -220,7 +221,7 @@ class ClientV1(Client):
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.join(ip, port, zone)
+        dag = self.join(ip, port, zone, agent_password)
         return self.wait_dag_succeed(dag.generic_id)
 
     def remove(self, ip: str, port: int) -> task.DagDetailDTO:
@@ -365,7 +366,7 @@ class ClientV1(Client):
         self._set_password_candidate_auth(root_pwd)
         return self.wait_dag_succeed(dag.generic_id)
 
-    def init(self, import_script=False) -> task.DagDetailDTO:
+    def init(self, import_script=False, create_proxyro_user=False, proxyro_password="") -> task.DagDetailDTO:
         """Initializes the cluster.
 
         Return as soon as request successfully.
@@ -384,10 +385,14 @@ class ClientV1(Client):
             OBShellHandleError: error message return by OBShell server.
         """
         req = self.create_request(
-            "/api/v1/ob/init", "POST", data={"import_script": import_script})
+            "/api/v1/ob/init", "POST", data={
+                "import_script": import_script,
+                "create_proxyro_user": create_proxyro_user,
+                "proxyro_password": proxyro_password
+            })
         return self.__handle_task_ret_request(req)
 
-    def init_sync(self, import_script=False) -> task.DagDetailDTO:
+    def init_sync(self, import_script=False, create_proxyro_user=False, proxyro_password="") -> task.DagDetailDTO:
         """Initializes the cluster synchronously.
 
         Seealso init.
@@ -398,7 +403,7 @@ class ClientV1(Client):
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.init(import_script)
+        dag = self.init(import_script, create_proxyro_user, proxyro_password)
         return self.wait_dag_succeed(dag.generic_id)
 
     def start(self, level: str, target: list, force_pass_dag=None) -> task.DagDetailDTO:
@@ -515,7 +520,7 @@ class ClientV1(Client):
         return self.wait_dag_succeed(dag.generic_id)
 
     def scale_out(
-            self, ip: str, port: int, zone: str, ob_configs: dict) -> task.DagDetailDTO:
+            self, ip: str, port: int, zone: str, ob_configs: dict, target_agent_password: str = "") -> task.DagDetailDTO:
         """Scales out the cluster.
 
         Return as soon as request successfully.
@@ -539,6 +544,7 @@ class ClientV1(Client):
                                       "agentInfo": {"ip": ip, "port": port},
                                       "zone": zone,
                                       "obConfigs": ob_configs,
+                                      "targetAgentPassword": target_agent_password,
                                   })
         return self.__handle_task_ret_request(req)
 
@@ -546,7 +552,8 @@ class ClientV1(Client):
                        ip: str,
                        port: int,
                        zone: str,
-                       ob_configs: dict) -> task.DagDetailDTO:
+                       ob_configs: dict,
+                       target_agent_password: str = "") -> task.DagDetailDTO:
         """Scales out the cluster synchronously.
 
         Seealso scale_out.
@@ -557,7 +564,7 @@ class ClientV1(Client):
             TaskExecuteFailedError: raise when the task failed,
                 include the failed task detail and logs.
         """
-        dag = self.scale_out(ip, port, zone, ob_configs)
+        dag = self.scale_out(ip, port, zone, ob_configs, target_agent_password)
         return self.wait_dag_succeed(dag.generic_id)
 
     def scale_in(self, ip: str, port: int = 2886, force_kill: bool = False) -> task.DagDetailDTO:
@@ -1448,10 +1455,20 @@ class ClientV1(Client):
         })
         return self._handle_ret_request(req)
 
-    def set_tenant_variables(self, tenant_name: str, variables: dict) -> bool:
-        """Sets the global variables of the tenant."""
+    def set_tenant_variables(self, tenant_name: str, variables: dict, tenant_password: str = None) -> bool:
+        """Sets the global variables of the tenant.
+
+        When setting the following variables, the tenant root password needs to be specified:
+        - "collation_server"
+        - "collation_database"
+        - "collation_connection"
+        - "character_set_server"
+        - "character_set_database"
+        - "character_set_connection"
+        """
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/variables", "PUT", data={
-            "variables": variables
+            "variables": variables,
+            "tenant_password": tenant_password
         })
         return self._handle_ret_request(req)
 
@@ -1600,6 +1617,7 @@ class ClientV1(Client):
         cluster_name: str,
         cluster_id: int,
         root_pwd: str,
+        agent_passwords: dict = None,
         clear_if_failed=False
     ):
         """Creates a new obcluster.
@@ -1646,7 +1664,8 @@ class ClientV1(Client):
                     raise IllegalOperatorError(
                         "configs should include the zone of the server.")
                 ip, port = server.split(':')
-                self.join_sync(ip, port, configs['zone'])
+                self.join_sync(ip, port, configs['zone'], agent_password=agent_passwords.get(
+                    server, None))
                 del configs['zone']
                 self.config_observer_sync(configs, "SERVER", [server])
             self.config_obcluster_sync(cluster_name, cluster_id, root_pwd)
@@ -2347,3 +2366,267 @@ class ClientV1(Client):
             data['archive_log_uri'] = archive_log_uri
         req = self.create_request("/api/v1/restore/windows", "GET", data)
         return self._handle_ret_request(req, ob.RestoreWindows)
+
+    def upload_obproxy_pkg(self, pkg_path: str) -> task.DagDetailDTO:
+        """Uploads the obproxy package.
+
+        Uploads the obproxy package to the server.
+
+        Args:
+            pkg_path (str): The path of the obproxy package.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+        """
+        file_name = os.path.basename(pkg_path)
+        with open(pkg_path, "rb") as f:
+            file = {'file': (file_name, f)}
+            req = requests.Request('POST',
+                                   f"http://{self.server}/api/v1/obproxy/package",
+                                   files=file)
+            prepared = req.prepare()
+        req = self.create_request(
+            "/api/v1/obproxy/package", 'POST', task_type="obproxy")
+        req.data = prepared.body
+        req.headers = prepared.headers
+        return self._handle_ret_request(req, UpgradePkgInfo)
+
+    def create_user(
+        self,
+        user_name: str,
+        password: str,
+        tenant_name: str = "sys",
+        root_password: str = "",
+        global_privileges: List[str] = None,
+        db_privileges: List[dict] = None,
+        host: str = "%",
+    ):
+        """Creates a new user.
+
+        Creates a new user with the specified configurations.
+
+        Args:
+            user_name (str): The name of the user.
+            password (str): The password of the user.
+            tenant_name (str): The name of the tenant.
+            root_password (str): The root password of the tenant.
+            global_privileges (list, optional): The global privileges of all databases.
+            db_privileges (list, optional): The privileges of the specific database.
+            host (str, optional): The host of the user. Defaults to "%".
+
+        Examples:
+            client.create_user("test_user", "******", global_privileges=[
+                   "CREATE", "DELETE"], db_privileges=[{
+                       "db_name": "oceanbase",
+                       "privileges": ["SELECT"]
+                   }])
+        """
+        data = {
+            'user_name': user_name,
+            'password': password,
+            'root_password': root_password,
+            'global_privileges': global_privileges,
+            'db_privileges': db_privileges,
+            'host_name': host
+        }
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user", "POST", data)
+        return self._handle_ret_request(req)
+
+    def drop_user(
+        self,
+        user_name: str,
+        tenant_name: str = "sys",
+        root_password: str = "",
+    ):
+        """Drops a user.
+
+        Drops a user with the specified configurations.
+
+        Args:
+            user_name (str): The name of the user.
+            tenant_name (str): The name of the tenant.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password
+        }
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}", "DELETE", data)
+        return self._handle_ret_request(req)
+
+    def add_obproxy_sync(
+        self,
+        home_path: str,
+        app_name: str = "",
+        sql_port: int = 2883,
+        exporter_port: int = 2884,
+        rpc_port: int = 2885,
+        rs_list: str = None,
+        config_url: str = None,
+        proxyro_password: str = "",
+        obproxy_sys_password: str = "",
+        parameters: dict = None,
+    ) -> task.DagDetailDTO:
+        """Adds a new obproxy.
+
+        Adds a new obproxy with the specified configurations.
+
+        Args:
+            home_path (str): The home path of the obproxy.
+            app_name (str): The name of the application.
+            sql_port (int, optional): The SQL port of the obproxy. Defaults to 2883.
+            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2884.
+            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2885.
+            rs_list (list, optional): The list of the rs.
+            config_url (str, optional): The URL of the config.
+            proxyro_passwword (str, optional): The password of proxyro user.
+            obproxy_sys_password (str, optional): The password of obproxy@sys user.
+        """
+        dag = self.add_obproxy(
+            home_path, app_name, sql_port, exporter_port, rpc_port, rs_list, config_url, proxyro_password, obproxy_sys_password, parameters)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def add_obproxy(
+        self,
+        home_path: str,
+        app_name: str = "",
+        sql_port: int = 2883,
+        exporter_port: int = 2884,
+        rpc_port: int = 2885,
+        rs_list: str = None,
+        config_url: str = None,
+        proxyro_password: str = "",
+        obproxy_sys_password: str = "",
+        parameters: dict = None,
+    ) -> task.DagDetailDTO:
+        """Adds a new obproxy.
+
+        Adds a new obproxy with the specified configurations.
+
+        Args:
+            home_path (str): The home path of the obproxy.
+            app_name (str): The name of the application.
+            sql_port (int, optional): The SQL port of the obproxy. Defaults to 2883.
+            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2884.
+            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2885.
+            rs_list (list, optional): The list of the rs.
+            config_url (str, optional): The URL of the config.
+            proxyro_password (str, optional): The password of proxyro user.
+            obproxy_sys_password (str, optional): The password of obproxy@sys user.
+        """
+        data = {
+            'home_path': home_path,
+            'name': app_name,
+            'sql_port': sql_port,
+            'rpc_port': rpc_port,
+            'exporter_port': exporter_port,
+            'rs_list': rs_list,
+            'config_url': config_url,
+            'proxyro_password': proxyro_password,
+            'obproxy_sys_password': obproxy_sys_password,
+            'parameters': parameters
+        }
+        req = self.create_request(
+            "/api/v1/obproxy", "POST", data, task_type="obproxy")
+        return self.__handle_task_ret_request(req)
+
+    def stop_obproxy(self) -> task.DagDetailDTO:
+        """Stops the obproxy.
+
+        Stops the obproxy.
+        """
+        req = self.create_request(
+            "/api/v1/obproxy/stop", "POST", task_type="obproxy")
+        return self.__handle_task_ret_request(req)
+
+    def stop_obproxy_sync(self) -> task.DagDetailDTO:
+        """Stops the obproxy.
+
+        Stops the obproxy.
+        """
+        dag = self.stop_obproxy()
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def start_obproxy(self) -> task.DagDetailDTO:
+        """Starts the obproxy.
+
+        Starts the obproxy.
+        """
+        req = self.create_request(
+            "/api/v1/obproxy/start", "POST", task_type="obproxy")
+        return self.__handle_task_ret_request(req)
+
+    def start_obproxy_sync(self) -> task.DagDetailDTO:
+        """Starts the obproxy.
+
+        Starts the obproxy.
+        """
+        dag = self.start_obproxy()
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_obproxy(self):
+        """Deletes the obproxy.
+
+        Deletes the obproxy.
+        """
+        req = self.create_request(
+            "/api/v1/obproxy", "DELETE", task_type="obproxy")
+        return self.__handle_task_ret_request(req)
+
+    def delete_obproxy_sync(self):
+        """Deletes the obproxy.
+
+        Deletes the obproxy.
+
+        Args:
+            clean_dir (bool, optional): Whether to delete the obproxy directory. Defaults to False.
+        """
+        dag = self.delete_obproxy()
+        return None if dag is None else self.wait_dag_succeed(dag.generic_id)
+
+    def upgrade_obproxy(self, version: str, release: str, upgrade_dir: str = ""):
+        """Upgrades the obproxy.
+
+        Upgrades the obproxy.
+
+        Args:
+            version (str): The version of the obproxy.
+            release (str): The release of the obproxy.
+            upgrade_dir (str, optional): The directory of the obproxy. Defaults to "".
+        """
+        data = {
+            'version': version,
+            'release': release,
+            'upgrade_dir': upgrade_dir
+        }
+        req = self.create_request(
+            "/api/v1/obproxy/upgrade", "POST", data, task_type="obproxy")
+        return self.__handle_task_ret_request(req)
+
+    def upgrade_obproxy_sync(self, version: str, release: str, upgrade_dir: str = ""):
+        """Upgrades the obproxy.
+
+        Upgrades the obproxy.
+
+        Args:
+            version (str): The version of the obproxy.
+            release (str): The release of the obproxy.
+            upgrade_dir (str, optional): The directory of the obproxy. Defaults to "".
+        """
+        dag = self.upgrade_obproxy(version, release, upgrade_dir)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def set_agent_password(self, agent_password: str):
+        """Set the agent password.
+
+        Args:
+            agent_password (str): The password of the agent.
+        """
+        data = {
+            'password': agent_password
+        }
+        req = self.create_request(
+            "/api/v1/agent/password", "POST", data, task_type="agent")
+        if self._handle_ret_request(req):
+            self._auth.agent_password = agent_password

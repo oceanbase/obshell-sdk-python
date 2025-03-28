@@ -34,7 +34,7 @@ from obshell.info import get_public_key, get_info
 class PasswordAuth(base.Auth):
     """Password-based authentication method."""
 
-    def __init__(self, password: str = "", version=None, lifetime=60) -> None:
+    def __init__(self, password: str = None, agent_password: str = None, version=None, lifetime=60) -> None:
         """Initialize a new PasswordAuth instance.
 
         Args:
@@ -49,7 +49,7 @@ class PasswordAuth(base.Auth):
 
                 - "v1": supported by OBShell version 4.2.2.0.
                 - "v2": supported by OBShell version 4.2.3.0 or later.
-            lifetime (int, optional): 
+            lifetime (int, optional):
                 lifetime of the authentication information in reqeust header.
                 Defalut to 60 second.
         """
@@ -57,6 +57,7 @@ class PasswordAuth(base.Auth):
                          [base.AuthVersion.V1, base.AuthVersion.V2])
         self.password = password
         self.lifetime = lifetime
+        self.agent_password = agent_password
         if version is not None:
             if version not in _AUTHS_VERSION:
                 raise ValueError("Version not supported")
@@ -67,17 +68,20 @@ class PasswordAuth(base.Auth):
             version = self.get_version()
             if version not in _AUTHS:
                 raise base.AuthError(f"Unsupported auth version: {version}")
-            self._method = _AUTHS[version](self.password, self.lifetime)
+            self._method = _AUTHS[version](
+                self.password, self.agent_password, self.lifetime)
         self._method.auth(request)
 
 
 class PasswordAuthMethod:
 
-    def __init__(self, password: str, lifetime: int) -> None:
+    def __init__(self, password: str, agent_password: str, lifetime: int) -> None:
         self.password = password
+        self.agent_password = agent_password
         self.pk = None
         self.lifetime = lifetime
         self.check_identity = False
+        self.agent_password_is_set = False
 
     def reset(self) -> None:
         self.pk = None
@@ -92,6 +96,10 @@ class PasswordAuthMethod:
             info = get_info(server)
             if info.identity == Agentidentity.SINGLE:
                 self.password = ""
+            if info.security:
+                self.agent_password_is_set = True
+            else:
+                self.agent_password = None
             self.check_identity = True
 
     def auth(self, req) -> None:
@@ -159,15 +167,23 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
                 cipher.encrypt(pad(bytes(body), AES.block_size))
             ).decode('utf8')
 
+        header = 'X-OCS-Header'
+        if (self.agent_password is not None and self.agent_password_is_set) or req.task_type == "obproxy":
+            password = self.agent_password
+            header = 'X-OCS-Agent-Header'
+        else:
+            password = self.password
+
         uri = urlparse(req.url).path if not urlparse(
             req.url).query else urlparse(req.url).path + "?" + urlparse(req.url).query
         headers = {
-            'auth': self.password,
+            'auth': "" if password is None else password,
             'ts': str(int(time.time()) + self.lifetime),
             'uri': uri,
             'keys': base64.b64encode(aes_key+aes_iv).decode('utf-8')
         }
-        req.headers['X-OCS-Header'] = self.encrypt_header(headers)
+
+        req.headers[header] = self.encrypt_header(headers)
         return
 
 
