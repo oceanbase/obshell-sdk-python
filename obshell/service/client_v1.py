@@ -196,18 +196,21 @@ class ClientV1(Client):
         Raises:
             OBShellHandleError: Error message return by OBShell server.
         """
-        if self.server == f"{ip}:{port}":
-            c = self
-        else:
-            c = ClientV1(ip, port, PasswordAuth(agent_password=agent_password))
-        req = c.create_request("/api/v1/agent/join", "POST",
-                               data={
-                                   "agentInfo": {"ip": self.host, "port": self.port},
-                                   "zoneName": zone,
-                                   "masterPassword": self._auth.agent_password
-                               })
-        dag = c.__handle_task_ret_request(req)
-        self._auth.reset_method()
+        try:
+            c = ClientV1(ip, port)
+            auth = self._get_auth()
+            c._set_auth(copy.deepcopy(auth))
+            if agent_password is not None:
+                c._set_auth(PasswordAuth(agent_password=agent_password))
+            req = c.create_request("/api/v1/agent/join", "POST",
+                                   data={
+                                       "agentInfo": {"ip": self.host, "port": self.port},
+                                       "zoneName": zone,
+                                       "masterPassword": self._auth.agent_password
+                                   })
+            dag = c.__handle_task_ret_request(req)
+        finally:
+            auth.reset_method()
         return dag
 
     def join_sync(self, ip: str, port: int, zone: str, agent_password: str = None) -> task.DagDetailDTO:
