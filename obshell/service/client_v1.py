@@ -2479,8 +2479,8 @@ class ClientV1(Client):
             home_path (str): The home path of the obproxy.
             app_name (str): The name of the application.
             sql_port (int, optional): The SQL port of the obproxy. Defaults to 2883.
-            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2884.
-            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2885.
+            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2884.
+            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2885.
             rs_list (list, optional): The list of the rs.
             config_url (str, optional): The URL of the config.
             proxyro_passwword (str, optional): The password of proxyro user.
@@ -2511,8 +2511,8 @@ class ClientV1(Client):
             home_path (str): The home path of the obproxy.
             app_name (str): The name of the application.
             sql_port (int, optional): The SQL port of the obproxy. Defaults to 2883.
-            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2884.
-            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2885.
+            exporter_port (int, optional): The exporter port of the obproxy. Defaults to 2884.
+            rpc_port (int, optional): The RPC port of the obproxy. Defaults to 2885.
             rs_list (list, optional): The list of the rs.
             config_url (str, optional): The URL of the config.
             proxyro_password (str, optional): The password of proxyro user.
@@ -2581,9 +2581,6 @@ class ClientV1(Client):
         """Deletes the obproxy.
 
         Deletes the obproxy.
-
-        Args:
-            clean_dir (bool, optional): Whether to delete the obproxy directory. Defaults to False.
         """
         dag = self.delete_obproxy()
         return None if dag is None else self.wait_dag_succeed(dag.generic_id)
@@ -2596,7 +2593,7 @@ class ClientV1(Client):
         Args:
             version (str): The version of the obproxy.
             release (str): The release of the obproxy.
-            upgrade_dir (str, optional): The directory of the obproxy. Defaults to "".
+            upgrade_dir (str, optional): the temp dir used by the task.
         """
         data = {
             'version': version,
@@ -2615,7 +2612,7 @@ class ClientV1(Client):
         Args:
             version (str): The version of the obproxy.
             release (str): The release of the obproxy.
-            upgrade_dir (str, optional): The directory of the obproxy. Defaults to "".
+            upgrade_dir (str, optional): the temp dir used by the task.
         """
         dag = self.upgrade_obproxy(version, release, upgrade_dir)
         return self.wait_dag_succeed(dag.generic_id)
