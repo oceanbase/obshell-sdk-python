@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 from .service.client_set import ClientSet
 from .service.client_v1 import TaskExecuteFailedError, OBShellHandleError, IllegalOperatorError
 from .service.client_v1 import IllegalOperatorError, ClientV1
