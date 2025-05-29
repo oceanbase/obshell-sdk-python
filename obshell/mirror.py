@@ -24,6 +24,11 @@ import requests
 from obshell.arch import getBaseArch
 from obshell.pkg import PackageInfo, Version, Release
 
+try:
+    import locale
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+except Exception as e:
+    pass
 
 REMOTE_REPOMD_FILE = "/repodata/repomd.xml"
 PRIMARY_REPOMD_TYPE = "primary"
@@ -286,7 +291,7 @@ version = os.popen("ldd --version").read()
 match = re.search(r'ldd\s+(\d+\.\d+)', version)
 RELEASE = EL8 if match and match.group(1) >= "2.28" else EL7
 NON_LSE = ARCH == 'aarch64' and not os.popen("grep atomics /proc/cpuinfo ").read()
-    
+
 
 class BaseMirror:
 
@@ -308,50 +313,6 @@ class BaseMirror:
 
 BASE_COMMUNITY_MIRROR = BaseMirror("OceanBase-community-stable", "https://mirrors.oceanbase.com/oceanbase/community/stable/el/$releasever/$basearch/")
 BASE_DEV_KIT_MIRROR = BaseMirror("OceanBase-development-kit", "https://mirrors.oceanbase.com/oceanbase/development-kit/el/$releasever/$basearch/")
-
 COMMUNITY_MIRROR = BASE_COMMUNITY_MIRROR.get_mirror(ARCH, RELEASE)
 DEV_KIT_MIRROR = BASE_DEV_KIT_MIRROR.get_mirror(ARCH, RELEASE)
 MIRRORS = [COMMUNITY_MIRROR, DEV_KIT_MIRROR]
-
-
-def search_package(name: str, version: str = None, release: str = None) -> List[RemotePackageInfo]:
-    '''
-        Search for a package in the configured mirrors.  
-        This function searches for a package with the given name, and optionally a specific version and release, 
-        in the pre-configured list of mirrors. If the package is found in any of the mirrors, it returns a list of
-        RemotePackageInfo objects. If the package is not found, it returns an empty list.
-        
-        :param name: The name of the package to search for.
-        :param version: The version of the package to search for (optional).
-        :param release: The release of the package to search for (optional).
-        
-        :return: A list of RemotePackageInfo objects representing the found packages, or an empty list if not found. """
-    '''
-    for mirror in MIRRORS:
-        packages = mirror._search(name, version, release)
-        if packages:
-            return packages
-    raise Exception(f"No such package: {name}-{version}-{release}")
-
-
-def download_package(dest_dir: str, name: str, version: str = None, release: str = None):
-    '''
-        Download a package from the configured mirrors to a specified directory. 
-        This function searches for a package with the given name, and optionally a specific version and release,
-        in the pre-configured list of mirrors. If the package is found, it downloads the first matching package to the 
-        specified destination directory. If the package is not found in any of the mirrors, it raises an exception.
-        
-        :param dest_dir: The directory where the package will be downloaded.
-        :param name: The name of the package to download.
-        :param version: The version of the package to download (optional).
-        :param release: The release of the package to download (optional).
-        
-        :raises Exception: If no matching package is found in any of the mirrors.
-    '''
-    for mirror in MIRRORS:
-        packages = mirror._search(name, version, release)
-        if packages:
-            package = packages[0]
-            return mirror._download_package(package, dest_dir)
-    raise Exception(f"No such package: {name}-{version}-{release}")
-
