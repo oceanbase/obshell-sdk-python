@@ -36,6 +36,8 @@ import obshell.model.unit as unit
 import obshell.model.tenant as tenant
 import obshell.model.resource_pool as pool
 import obshell.model.recyclebin as recyclebin
+import obshell.model.database as database
+import obshell.model.user as user
 
 
 class OBShellHandleError(Exception):
@@ -890,6 +892,38 @@ class ClientV1(Client):
                         raise e
                     time.sleep(3)
 
+    def list_cluster_parameters(self) -> List[ob.ClusterParameter]:
+        """Lists the cluster parameters.
+
+        Lists the cluster parameters of the current cluster.
+
+        Returns:
+            List of cluster parameters as ob.ClusterParameter.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request("/api/v1/obcluster/parameters", "GET")
+        return self._handle_ret_from_content_request(req, ob.ClusterParameter)
+
+    def set_cluster_parameters(self, params: List[ob.SetClusterParametersParam]):
+        """Sets the cluster parameters.
+
+        Sets the cluster parameters of the current cluster.
+
+        Args:
+            params (List[ob.SetClusterParametersParam]): The parameters to be set.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: error message return by OBShell server.
+        """
+        req = self.create_request("/api/v1/obcluster/parameters", "PATCH",
+                                  data={"params": [param.__dict__ for param in params]})
+        return self._handle_ret_request(req)
+
     def get_dag(self, generic_id: str, show_detail=True) -> task.DagDetailDTO:
         """Gets the detail of a task(DAG).
 
@@ -1455,6 +1489,13 @@ class ClientV1(Client):
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/password", "PUT", data={
             "old_password": old_password,
             "new_password": new_password
+        })
+        return self._handle_ret_request(req)
+
+    def persist_tenant_root_password(self, tenant_name: str, password: str) -> bool:
+        """Persist the root password of the tenant in memory."""
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/password/persist", "POST", data={
+            "password": password
         })
         return self._handle_ret_request(req)
 
@@ -2399,7 +2440,7 @@ class ClientV1(Client):
         user_name: str,
         password: str,
         tenant_name: str = "sys",
-        root_password: str = "",
+        root_password: str = None,
         global_privileges: List[str] = None,
         db_privileges: List[dict] = None,
         host: str = "%",
@@ -2427,11 +2468,12 @@ class ClientV1(Client):
         data = {
             'user_name': user_name,
             'password': password,
-            'root_password': root_password,
             'global_privileges': global_privileges,
             'db_privileges': db_privileges,
             'host_name': host
         }
+        if root_password is not None:
+            data['root_password'] = root_password
         req = self.create_request(
             f"/api/v1/tenant/{tenant_name}/user", "POST", data)
         return self._handle_ret_request(req)
@@ -2440,7 +2482,7 @@ class ClientV1(Client):
         self,
         user_name: str,
         tenant_name: str = "sys",
-        root_password: str = "",
+        root_password: str = None,
     ):
         """Drops a user.
 
@@ -2452,11 +2494,153 @@ class ClientV1(Client):
             root_password (str): The password of root@sys user.
         """
         data = {
-            'root_password': root_password
-        }
+            'root_password': root_password,
+        } if root_password is not None else {}
         req = self.create_request(
             f"/api/v1/tenant/{tenant_name}/user/{user_name}", "DELETE", data)
         return self._handle_ret_request(req)
+
+    def lock_user(self, tenant_name: str, user_name: str, root_password: str = None):
+        """Locks a user.
+
+        Locks a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+        """
+        data = {}
+        if root_password is not None:
+            data['root_password'] = root_password
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/lock", "PUT", data)
+        return self._handle_ret_request(req)
+
+    def unlock_user(self, tenant_name: str, user_name: str, root_password: str = None):
+        """Unlocks a user.
+
+        Unlocks a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+        """
+        data = {}
+        if root_password is not None:
+            data['root_password'] = root_password
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/lock", "DELETE", data)
+        return self._handle_ret_request(req)
+
+    def set_user_password(self, tenant_name: str, user_name: str, new_password: str, root_password: str = None):
+        """Unlocks a user.
+
+        Unlocks a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+            new_password (str): The new password of the user.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'new_password': new_password,
+        }
+        if root_password is not None:
+            data['root_password'] = root_password
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/password", "PUT", data)
+        return self._handle_ret_request(req)
+
+    def set_user_global_privileges(self, tenant_name: str, user_name: str, global_privileges: List[str], root_password: str = None):
+        """Sets the global privileges of a user.
+
+        Sets the global privileges of a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+            global_privileges (list): The global privileges of all databases.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'global_privileges': global_privileges,
+        }
+        if root_password is not None:
+            data['root_password'] = root_password
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/global-privilege", "PUT", data)
+        return self._handle_ret_request(req)
+
+    def set_user_db_privileges(self, tenant_name: str, user_name: str, db_privileges: List[dict], root_password: str = None):
+        """Sets the database privileges of a user.
+
+        Sets the database privileges of a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+            db_privileges (list): The privileges of the specific database.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'db_privileges': db_privileges,
+        }
+        if root_password is not None:
+            data['root_password'] = root_password
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/db-privilege", "PUT", data)
+        return self._handle_ret_request(req)
+
+    def list_users(self, tenant_name: str, root_password: str = None):
+        """Lists all users.
+
+        Lists all users with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password,
+        } if root_password is not None else {}
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user", "GET", data)
+        return self._handle_ret_from_content_request(req, user.ObUser)
+
+    def get_user(self, tenant_name: str, user_name: str, root_password: str = None):
+        """Gets the information of a user.
+
+        Gets the information of a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password,
+        } if root_password is not None else {}
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}", "GET", data)
+        return self._handle_ret_from_content_request(req, user.ObUser)
+
+    def get_user_stats(self, tenant_name: str, user_name: str, root_password: str = None):
+        """Gets the information of a user.
+
+        Gets the information of a user with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            user_name (str): The name of the user.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password,
+        } if root_password is not None else {}
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/user/{user_name}/stats", "GET", data)
+        return self._handle_ret_request(req, user.ObUserStats)
 
     def add_obproxy_sync(
         self,
@@ -2630,3 +2814,93 @@ class ClientV1(Client):
             "/api/v1/agent/password", "POST", data, task_type="agent")
         if self._handle_ret_request(req):
             self._auth.agent_password = agent_password
+
+    def create_database(self, tenant_name: str, db_name: str, collation: str = None, read_only: bool = False, root_password: str = None):
+        """Creates a new database.
+
+        Creates a new database with the specified configurations.
+
+        Args:
+            db_name (str): The name of the database.
+            collation (str): The collation of the database.
+            read_only (bool): Whether the database is read only.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'db_name': db_name,
+            'collation': collation,
+            'read_only': read_only,
+            'root_password': root_password
+        }
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/databases", "POST", data)
+        return self._handle_ret_request(req)
+
+    def update_database(self, tenant_name: str, db_name: str, collation: str = None, read_only: bool = False, root_password: str = None):
+        """Updates a database.
+
+        Updates a database with the specified configurations.
+
+        Args:
+            db_name (str): The name of the database.
+            collation (str): The collation of the database.
+            read_only (bool): Whether the database is read only.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'collation': collation,
+            'read_only': read_only,
+            'root_password': root_password
+        }
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/databases/{db_name}", "PUT", data)
+        return self._handle_ret_request(req)
+
+    def delete_database(self, tenant_name: str, db_name: str, root_password: str = None):
+        """Deletes a database.
+
+        Deletes a database with the specified configurations.
+
+        Args:
+            db_name (str): The name of the database.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password
+        }
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/databases/{db_name}", "DELETE", data)
+        return self._handle_ret_request(req)
+
+    def list_databases(self, tenant_name: str, root_password: str = None) -> List[database.Database]:
+        """Gets the databases of the tenant.
+
+        Gets the databases of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password
+        } if root_password else {}
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/databases", "GET", data)
+        return self._handle_ret_from_content_request(req, database.Database)
+
+    def get_database(self, tenant_name: str, db_name: str, root_password: str = None) -> database.Database:
+        """Gets the database of the tenant.
+
+        Gets the database of the tenant with the specified configurations.
+
+        Args:
+            tenant_name (str): The name of the tenant.
+            db_name (str): The name of the database.
+            root_password (str): The password of root@sys user.
+        """
+        data = {
+            'root_password': root_password
+        } if root_password else {}
+        req = self.create_request(
+            f"/api/v1/tenant/{tenant_name}/databases/{db_name}", "GET", data)
+        return self._handle_ret_request(req, database.Database)

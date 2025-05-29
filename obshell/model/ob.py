@@ -136,34 +136,127 @@ class RestoreOverview:
 
     def __str__(self) -> str:
         return model_str(self)
-    
-class RestoreWindow: 
-    
+
+
+class RestoreWindow:
+
     def __init__(self, data: dict):
         self.start_time = data.get("start_time")
         self.end_time = data.get("end_time")
-        
+
     @classmethod
     def from_dict(cls, data: dict):
         return RestoreWindow(data)
-    
+
     def __str__(self) -> str:
         return model_str(self)
-    
+
+
 class RestoreWindows:
-    
+
     def __init__(self, data: dict):
-        self.restore_windows = [RestoreWindow.from_dict(window) for window in data.get("restore_windows", [])]
-        
+        self.restore_windows = [RestoreWindow.from_dict(
+            window) for window in data.get("restore_windows", [])]
+
     def __iter__(self):
         return iter(self.restore_windows)
-    
+
     def __item__(self, index):
         return self.restore_windows[index]
-        
+
     @classmethod
     def from_dict(cls, data: dict):
         return RestoreWindows(data)
-    
+
     def __str__(self) -> str:
         return model_str(self)
+
+
+class ClusterParameter:
+
+    def __init__(self, data: dict):
+        self.name = data.get("name")
+        self.scope = data.get("scope")
+        self.edit_level = data.get("edit_level")
+        self.default_value = data.get("default_value")
+        self.section = data.get("section")
+        self.data_type = data.get("data_type")
+        self.info = data.get("info")
+        self.server_value = [ObParameterValue.from_dict(
+            item) for item in data.get("ob_parameters", [])]
+        self.tenant_value = [TenantParameterValue.from_dict(
+            item) for item in data.get("tenant_value", [])]
+        self.values = data.get("values", [])
+        self.is_single_value = data.get("is_single_value", False)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return ClusterParameter(data)
+
+    def __str__(self) -> str:
+        return model_str(self)
+
+
+class ObParameterValue:
+
+    def __init__(self, data: dict):
+        self.svr_ip = data.get("svr_ip")
+        self.svr_port = data.get("svr_port")
+        self.zone = data.get("zone")
+        self.tenant_id = data.get("tenant_id")
+        self.tenant_name = data.get("tenant_name")
+        self.value = data.get("value")
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return ObParameterValue(data)
+
+    def __str__(self) -> str:
+        return model_str(self)
+
+
+class TenantParameterValue:
+
+    def __init__(self, data: dict):
+        self.tenant_id = data.get("tenant_id")
+        self.tenant_name = data.get("tenant_name")
+        self.value = data.get("value")
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return TenantParameterValue(data)
+
+    def __str__(self) -> str:
+        return model_str(self)
+
+
+class SetClusterParametersParam:
+    """
+    A structure used to be the param of set cluster parameters.
+
+    Attr:
+        name: The name of the parameter.
+        value: The value of the parameter.
+        scope: The scope of the parameter. It can only be "TENANT" or "CLUSTER".
+        data: 
+            A dictionary containing additional data such as servers, tenants, zones, and all_user_tenant.
+            - servers: A list of server IPs and ports. such as ["11.11.11.1:2882", "11.11.11.2:2882"]
+                Cannot be set together with zones.
+            - zones: A list of zone names. such as ["zone1", "zone2"]
+                Cannot be set together with servers.
+            - tenants: A list of tenant names. such as ["tenant1", "tenant2"]
+                Only can be set when scope is "TENANT".
+                Cannot be set together with all_user_tenant.
+            - all_user_tenant: A boolean value indicating whether to apply the parameter to all user tenants.
+                Only can be set when scope is "TENANT".
+                Cannot be set together with tenants.
+    """
+
+    def __init__(self, name: str, value: str, scope: str, data: dict = {}):
+        self.name = name
+        self.scope = scope
+        self.value = value
+        self.servers = data.get("servers", [])
+        self.tenants = data.get("tenants", [])
+        self.zones = data.get("zones", [])
+        self.all_user_tenant = data.get("all_user_tenant", False)

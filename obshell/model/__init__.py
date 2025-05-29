@@ -14,3 +14,4 @@
 # limitations under the License.
 
 from .tenant import ZoneParam,ModifyReplicaParam
+from .ob import SetClusterParametersParam
