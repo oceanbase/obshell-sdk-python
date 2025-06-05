@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='obshell',
-    version='0.0.4',
+    version='0.0.5',
     packages=find_packages(),
     description='OBShell SDK is a powerful and easy-to-use Python library that provides developers with simple method calls to interact with the OBShell. OBShell SDK allows for quick integration, enabling developers to efficiently implement features and focus on creating value in their applications.',
     long_description=open('README.md').read(),
