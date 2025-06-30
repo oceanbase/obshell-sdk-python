@@ -43,10 +43,13 @@ import obshell.model.user as user
 class OBShellHandleError(Exception):
     def __init__(self, err: dict) -> None:
         super().__init__()
-        self.code = err.get("code", 0)
+        self.code = err.get("code", 0) # old error code before obshell V4.3.1.0
+        self.err_code = err.get("errCode", "") # new error code in obshell V4.3.1.0
         self.message = err.get("message", "")
 
     def __str__(self) -> str:
+        if self.err_code is not "":
+            return f"Error code: {self.err_code}, message: {self.message}"
         return f"Error code: {self.code}, message: {self.message}"
 
 

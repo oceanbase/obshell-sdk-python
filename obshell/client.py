@@ -21,10 +21,14 @@ from obshell.auth.base import AuthType, Auth
 from obshell.auth.base import AuthVersion, OBShellVersion
 from obshell.info import get_info
 
-
+# error cod before obshell V4.3.1.0
 DECRYPT_ERROR_CODE = 1     # decrypt error
 INCOMPATIBLE_ERROR_CODE = 2     # incompatible
 UNAUTHORIZED_ERROR_CODE = 10008  # unauthorized
+
+# new error code in obshell V4.3.1.0
+ERROR_CODE_INCORRECT_OCEANBASE_PASSWORD = "Security.Authentication.IncorrectOceanbasePassowrd"
+ERROR_CODE_HEADER_DECRYPT_ERROR = "Security.Authentication.Header.DecryptError"
 
 
 class Client:
@@ -91,14 +95,15 @@ class Client:
             if err is None:  # network error
                 raise Exception(
                     f"Request failed with status code {resp.status_code}")
-            errcode = err.get("code")
-            if errcode == DECRYPT_ERROR_CODE:
+            code = err.get("code", 0) # old error code before obshell V4.3.1.0
+            err_code = err.get("errCode", "") # new error code in obshell V4.3.1.0
+            if code == DECRYPT_ERROR_CODE or err_code == ERROR_CODE_HEADER_DECRYPT_ERROR:
                 self._auth.reset_method()
                 self.__real_execute(req)
-            elif err == INCOMPATIBLE_ERROR_CODE:
+            elif code == INCOMPATIBLE_ERROR_CODE:
                 return resp
             else:
-                if errcode == UNAUTHORIZED_ERROR_CODE:
+                if code == UNAUTHORIZED_ERROR_CODE or err_code == ERROR_CODE_INCORRECT_OCEANBASE_PASSWORD:
                     ret = self.__try_candidate_auth(req)
                     if ret:
                         return ret
