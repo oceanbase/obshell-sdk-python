@@ -27,7 +27,7 @@ INCOMPATIBLE_ERROR_CODE = 2     # incompatible
 UNAUTHORIZED_ERROR_CODE = 10008  # unauthorized
 
 # new error code in obshell V4.3.1.0
-ERROR_CODE_INCORRECT_OCEANBASE_PASSWORD = "Security.Authentication.IncorrectOceanbasePassowrd"
+ERROR_CODE_INCORRECT_OCEANBASE_PASSWORD = "Security.Authentication.IncorrectOceanbasePassword"
 ERROR_CODE_HEADER_DECRYPT_ERROR = "Security.Authentication.Header.DecryptError"
 
 
