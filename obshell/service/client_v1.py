@@ -48,7 +48,7 @@ class OBShellHandleError(Exception):
         self.message = err.get("message", "")
 
     def __str__(self) -> str:
-        if self.err_code is not "":
+        if self.err_code != "":
             return f"Error code: {self.err_code}, message: {self.message}"
         return f"Error code: {self.code}, message: {self.message}"
 
@@ -1664,7 +1664,7 @@ class ClientV1(Client):
         cluster_name: str,
         cluster_id: int,
         root_pwd: str,
-        agent_passwords: dict = None,
+        agent_passwords: dict = {},
         clear_if_failed=False
     ):
         """Creates a new obcluster.
