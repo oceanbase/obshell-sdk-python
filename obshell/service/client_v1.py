@@ -2817,6 +2817,7 @@ class ClientV1(Client):
             "/api/v1/agent/password", "POST", data, task_type="agent")
         if self._handle_ret_request(req):
             self._auth.agent_password = agent_password
+            self._auth.reset()
 
     def create_database(self, tenant_name: str, db_name: str, collation: str = None, read_only: bool = False, root_password: str = None):
         """Creates a new database.
