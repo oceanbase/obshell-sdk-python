@@ -150,6 +150,8 @@ class ClientV1(Client):
         if resp.status_code == 200:
             if cls is None:
                 return True
+            elif cls == str:
+                return resp.json()['data']
             else:
                 return cls.from_dict(resp.json()['data'])
         elif resp.status_code == 204:
@@ -2908,3 +2910,55 @@ class ClientV1(Client):
         req = self.create_request(
             f"/api/v1/tenant/{tenant_name}/databases/{db_name}", "GET", data)
         return self._handle_ret_request(req, database.Database)
+
+    def set_prometheus_config(self, address: str, username: str = "", password: str = ""):
+        """Sets the prometheus config of the cluster.
+
+        Args:
+            address (str): The address of the prometheus.
+            username (str): The username of the prometheus.
+            password (str): The password of the prometheus.
+        """
+        req = self.create_request(f"/api/v1/system/external/prometheus", "PUT", data={
+            "address": address,
+            "auth": {
+                "username": username,
+                "password": password
+            }
+        })
+        return self._handle_ret_request(req)
+
+    def get_prometheus_config(self) -> str:
+        """Gets the prometheus address of the cluster.
+
+        Returns:
+            str: The prometheus address of the cluster.
+        """
+        req = self.create_request(f"/api/v1/system/external/prometheus", "GET")
+        return self._handle_ret_request(req, str)
+    
+    def set_alertmanager_config(self, address: str, username: str = "", password: str = ""):
+        """Sets the alertmanager config of the cluster.
+
+        Args:
+            address (str): The address of the alertmanager.
+            username (str): The username of the alertmanager.
+            password (str): The password of the alertmanager.
+        """
+        req = self.create_request(f"/api/v1/system/external/alertmanager", "PUT", data={
+            "address": address,
+            "auth": {
+                "username": username,
+                "password": password
+            }
+        })
+        return self._handle_ret_request(req)
+
+    def get_alertmanager_config(self) -> str:
+        """Gets the alertmanager address of the cluster.
+
+        Returns:
+            str: The alertmanager address of the cluster.
+        """
+        req = self.create_request(f"/api/v1/system/external/alertmanager", "GET")
+        return self._handle_ret_request(req, str)
