@@ -15,3 +15,4 @@
 
 from .tenant import ZoneParam,ModifyReplicaParam
 from .ob import SetClusterParametersParam
+from .security import SshTarget

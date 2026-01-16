@@ -38,6 +38,9 @@ import obshell.model.resource_pool as pool
 import obshell.model.recyclebin as recyclebin
 import obshell.model.database as database
 import obshell.model.user as user
+import obshell.model.security as security
+import obshell.model.inspection as inspection
+import obshell.model.session as session
 
 
 class OBShellHandleError(Exception):
@@ -2959,6 +2962,437 @@ class ClientV1(Client):
 
         Returns:
             str: The alertmanager address of the cluster.
+        """
+        req = self.create_request(f"/api/v1/system/external/alertmanager", "GET")
+        return self._handle_ret_request(req, str)
+
+    
+    # ==================== Security Module ====================
+
+    def create_credential(self, name: str, target_type: str,
+                          username: str, targets: list,
+                          passphrase: str = None,
+                          ssh_type: str = "PASSWORD",
+                          description: str = None) -> security.Credential:
+        """Creates a new credential with SSH validation and encryption.
+
+        Args:
+            name (str): Credential name.
+            target_type (str): Target type, currently only supports "HOST".
+            username (str): Username for SSH connection.
+            targets (list): List of SshTarget objects or dicts containing host information.
+            passphrase (str): Password for SSH connection (plain text, will be encrypted before storage).
+            ssh_type (str): SSH authentication type (default: "PASSWORD").
+            description (str): Credential description.
+
+        Returns:
+            Credential: The created credential information.
+        """
+        def convert_target(t):
+            if hasattr(t, 'to_dict'):
+                return t.to_dict()
+            return t
+        
+        ssh_credential_property = {
+            "type": ssh_type,
+            "username": username,
+            "targets": [convert_target(t) for t in targets]
+        }
+        if passphrase is not None:
+            ssh_credential_property["passphrase"] = passphrase
+        
+        data = {
+            "name": name,
+            "target_type": target_type,
+            "ssh_credential_property": ssh_credential_property
+        }
+        if description is not None:
+            data["description"] = description
+        
+        req = self.create_request("/api/v1/security/credential", "POST", data=data)
+        return self._handle_ret_request(req, security.Credential)
+
+    def get_credential(self, credential_id: int) -> security.Credential:
+        """Gets a credential by ID.
+
+        Args:
+            credential_id (int): The credential ID.
+
+        Returns:
+            Credential: The credential information.
+        """
+        req = self.create_request(f"/api/v1/security/credential/{credential_id}", "GET")
+        return self._handle_ret_request(req, security.Credential)
+
+    def update_credential(self, credential_id: int, name: str,
+                          username: str, targets: list,
+                          passphrase: str = None,
+                          ssh_type: str = "PASSWORD",
+                          description: str = None) -> security.Credential:
+        """Updates a credential with SSH validation and encryption.
+
+        Args:
+            credential_id (int): The credential ID.
+            name (str): Credential name.
+            username (str): Username for SSH connection.
+            targets (list): List of SshTarget objects or dicts containing host information.
+            passphrase (str): Password for SSH connection (plain text, will be encrypted before storage).
+            ssh_type (str): SSH authentication type (default: "PASSWORD").
+            description (str): Credential description.
+
+        Returns:
+            Credential: The updated credential information.
+        """
+        def convert_target(t):
+            if hasattr(t, 'to_dict'):
+                return t.to_dict()
+            return t
+        
+        ssh_credential_property = {
+            "type": ssh_type,
+            "username": username,
+            "targets": [convert_target(t) for t in targets]
+        }
+        if passphrase is not None:
+            ssh_credential_property["passphrase"] = passphrase
+        
+        data = {
+            "name": name,
+            "ssh_credential_property": ssh_credential_property
+        }
+        if description is not None:
+            data["description"] = description
+        
+        req = self.create_request(f"/api/v1/security/credential/{credential_id}", "PATCH", data=data)
+        return self._handle_ret_request(req, security.Credential)
+
+    def delete_credential(self, credential_id: int) -> bool:
+        """Deletes a credential by ID (hard delete).
+
+        Args:
+            credential_id (int): The credential ID.
+
+        Returns:
+            bool: True if the deletion was successful.
+        """
+        req = self.create_request(f"/api/v1/security/credential/{credential_id}", "DELETE")
+        return self._handle_ret_request(req)
+
+    def list_credentials(self, credential_id: int = None, target_type: str = None,
+                         key_word: str = None, page: int = 1, size: int = 10,
+                         sort: str = None, sort_order: str = None) -> security.PaginatedCredentialResponse:
+        """Lists credentials with filtering, pagination, and sorting.
+
+        Args:
+            credential_id (int): Credential ID filter.
+            target_type (str): Target type filter, currently only supports "HOST".
+            key_word (str): Keyword for searching.
+            page (int): Page number (default: 1).
+            page_size (int): Page size (default: 10).
+            sort (str): Sort field.
+            sort_order (str): Sort order (asc/desc).
+
+        Returns:
+            PaginatedCredentialResponse: Paginated list of credentials.
+        """
+        data = {}
+        if credential_id is not None:
+            data["credential_id"] = credential_id
+        if target_type is not None:
+            data["target_type"] = target_type
+        if key_word is not None:
+            data["key_word"] = key_word
+        data["page"] = page
+        data["page_size"] = size # will be removed in the future
+        data["size"] = size # for compatibility the future
+        if sort is not None:
+            data["sort"] = sort
+        if sort_order is not None:
+            data["sort_order"] = sort_order
+        req = self.create_request("/api/v1/security/credentials", "GET", query_param=data)
+        return self._handle_ret_request(req, security.PaginatedCredentialResponse)
+
+    def validate_credential(self, target_type: str,
+                            username: str, targets: list,
+                            passphrase: str = None,
+                            ssh_type: str = "PASSWORD") -> security.ValidationResult:
+        """Validates a credential without storing it.
+
+        Args:
+            target_type (str): Target type, currently only supports "HOST".
+            username (str): Username for SSH connection.
+            targets (list): List of SshTarget objects or dicts containing host information.
+            passphrase (str): Password for SSH connection.
+            ssh_type (str): SSH authentication type (default: "PASSWORD").
+
+        Returns:
+            ValidationResult: The validation result.
+        """
+        def convert_target(t):
+            if hasattr(t, 'to_dict'):
+                return t.to_dict()
+            return t
+        
+        ssh_credential_property = {
+            "type": ssh_type,
+            "username": username,
+            "targets": [convert_target(t) for t in targets]
+        }
+        if passphrase is not None:
+            ssh_credential_property["passphrase"] = passphrase
+        
+        data = {
+            "target_type": target_type,
+            "ssh_credential_property": ssh_credential_property
+        }
+        
+        req = self.create_request("/api/v1/security/credential/validate", "POST", data=data)
+        return self._handle_ret_request(req, security.ValidationResult)
+
+    def batch_validate_credentials(self, credential_id_list: list) -> list:
+        """Validates multiple credentials by ID list.
+
+        Args:
+            credential_id_list (list): List of credential IDs to validate.
+
+        Returns:
+            list: List of ValidationResult objects.
+        """
+        data = {"credential_id_list": credential_id_list}
+        req = self.create_request("/api/v1/security/credentials/validate", "POST", data=data)
+        return self._handle_ret_from_content_request(req, security.ValidationResult)
+
+    def batch_delete_credentials(self, credential_id_list: list) -> bool:
+        """Deletes multiple credentials by ID list (hard delete).
+
+        Args:
+            credential_id_list (list): List of credential IDs to delete.
+
+        Returns:
+            bool: True if the deletion was successful.
+        """
+        data = {"credential_id_list": credential_id_list}
+        req = self.create_request("/api/v1/security/credentials", "DELETE", data=data)
+        return self._handle_ret_request(req)
+
+    def update_credential_encrypt_secret_key(self, aes_key: str) -> bool:
+        """Updates AES key and re-encrypts all stored credential passphrases.
+
+        Args:
+            aes_key (str): New AES key (Base64 encoded raw key bytes).
+
+        Returns:
+            bool: True if the update was successful.
+        """
+        data = {"aes_key": aes_key}
+        req = self.create_request("/api/v1/security/credential/encrypt-secret-key", "PUT", data=data)
+        return self._handle_ret_request(req)
+
+    # ==================== Inspection Module ====================
+
+    def trigger_inspection(self, scenario: str) -> task.DagDetailDTO:
+        """Triggers cluster inspection with specified scenario (basic or performance).
+
+        Args:
+            scenario (str): Inspection scenario, e.g., "basic" or "performance".
+
+        Returns:
+            DagDetailDTO: The task detail for the inspection.
+        """
+        data = {"scenario": scenario}
+        req = self.create_request("/api/v1/obcluster/inspection", "POST", data=data)
+        return self.__handle_task_ret_request(req)
+
+    def trigger_inspection_sync(self, scenario: str) -> task.DagDetailDTO:
+        """Triggers cluster inspection and waits for the task to succeed.
+
+        Args:
+            scenario (str): Inspection scenario, e.g., "basic" or "performance".
+
+        Returns:
+            DagDetailDTO: The task detail for the inspection.
+        """
+        dag = self.trigger_inspection(scenario)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def get_inspection_report(self, report_id: str) -> inspection.InspectionReport:
+        """Gets detailed inspection report by report ID.
+
+        Args:
+            report_id (str): The inspection report ID.
+
+        Returns:
+            InspectionReport: The inspection report.
+        """
+        req = self.create_request(f"/api/v1/obcluster/inspection/report/{report_id}", "GET")
+        return self._handle_ret_request(req, inspection.InspectionReport)
+
+    def get_inspection_history(self, page: int = 1, size: int = 10,
+                               scenario: str = None, sort: str = "start_time,desc") -> inspection.PaginatedInspectionHistoryResponse:
+        """Gets paginated inspection history with filters.
+
+        Args:
+            page (int): Page number (default: 1).
+            size (int): Page size (default: 10).
+            scenario (str): Scenario filter ('basic' or 'performance' or 'basic,performance').
+            sort (str): Sort parameter (format: field,order).
+
+        Returns:
+            PaginatedInspectionHistoryResponse: Paginated list of inspection history.
+        """
+        data = {"page": page, "size": size, "sort": sort}
+        if scenario is not None:
+            data["scenario"] = scenario
+        req = self.create_request("/api/v1/obcluster/inspection/reports", "GET", query_param=data)
+        return self._handle_ret_request(req, inspection.PaginatedInspectionHistoryResponse)
+
+    # ==================== Session Module ====================
+
+    def get_tenant_sessions(self, tenant_name: str, page: int = None, size: int = None,
+                           user: str = None, db: str = None, client_ip: str = None,
+                           session_id: str = None, active_only: bool = None,
+                           svr_ip: str = None, sort: str = None) -> session.PaginatedTenantSessions:
+        """Gets tenant sessions with filtering and pagination.
+
+        Args:
+            tenant_name (str): The tenant name.
+            page (int): Page number.
+            size (int): Page size.
+            user (str): Database user filter.
+            db (str): Database name filter.
+            client_ip (str): Client IP filter.
+            session_id (str): Session ID filter.
+            active_only (bool): Filter for active sessions only.
+            svr_ip (str): Server IP filter.
+            sort (str): Sort parameter.
+
+        Returns:
+            PaginatedTenantSessions: Paginated list of tenant sessions.
+        """
+        data = {}
+        if page is not None:
+            data["page"] = page
+        if size is not None:
+            data["size"] = size
+        if user is not None:
+            data["user"] = user
+        if db is not None:
+            data["db"] = db
+        if client_ip is not None:
+            data["client_ip"] = client_ip
+        if session_id is not None:
+            data["id"] = session_id
+        if active_only is not None:
+            data["active_only"] = active_only
+        if svr_ip is not None:
+            data["svr_ip"] = svr_ip
+        if sort is not None:
+            data["sort"] = sort
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions", "GET", query_param=data)
+        return self._handle_ret_request(req, session.PaginatedTenantSessions)
+
+    def get_tenant_session(self, tenant_name: str, session_id: str) -> session.TenantSession:
+        """Gets a specific tenant session.
+
+        Args:
+            tenant_name (str): The tenant name.
+            session_id (str): The session ID.
+
+        Returns:
+            TenantSession: The tenant session information.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions/{session_id}", "GET")
+        return self._handle_ret_request(req, session.TenantSession)
+
+    def kill_tenant_sessions(self, tenant_name: str, session_ids: list) -> bool:
+        """Kills tenant sessions.
+
+        Args:
+            tenant_name (str): The tenant name.
+            session_ids (list): List of session IDs to kill.
+
+        Returns:
+            bool: True if the operation was successful.
+        """
+        data = {"session_ids": session_ids}
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions", "DELETE", data=data)
+        return self._handle_ret_request(req)
+
+    def kill_tenant_session_query(self, tenant_name: str, session_ids: list) -> bool:
+        """Kills tenant session queries.
+
+        Args:
+            tenant_name (str): The tenant name.
+            session_ids (list): List of session IDs to kill.
+
+        Returns:
+            bool: True if the operation was successful.
+        """
+        data = {"session_ids": session_ids}
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions/queries", "DELETE", data=data)
+        return self._handle_ret_request(req)
+
+    def get_tenant_sessions_stats(self, tenant_name: str) -> session.TenantSessionStats:
+        """Gets tenant sessions statistics.
+
+        Args:
+            tenant_name (str): The tenant name.
+
+        Returns:
+            TenantSessionStats: The session statistics.
+        """
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions/stats", "GET")
+        return self._handle_ret_request(req, session.TenantSessionStats)
+
+    # ==================== for seekdb ====================
+    def set_seekdb_promethes_config(self, address: str, username: str = "", password: str = "") -> bool:
+        """Sets the prometheus config of the seekdb.
+
+        Args:
+            address (str): The address of the prometheus.
+            username (str): The username of the prometheus.
+            password (str): The password of the prometheus.
+        """
+        req = self.create_request(f"/api/v1/system/external/prometheus", "PUT", data={
+            "address": address,
+            "auth": {
+                "username": username,
+                "password": password
+            }
+        })
+        return self._handle_ret_request(req)
+
+    def set_seekdb_alertmanager_config(self, address: str, username: str = "", password: str = "") -> bool:
+        """Sets the alertmanager config of the seekdb.
+
+        Args:
+            address (str): The address of the alertmanager.
+            username (str): The username of the alertmanager.
+            password (str): The password of the alertmanager.
+        """
+        req = self.create_request(f"/api/v1/system/external/alertmanager", "PUT", data={
+            "address": address,
+            "auth": {
+                "username": username,
+                "password": password
+            }
+        })
+        return self._handle_ret_request(req)
+
+    def get_seekdb_prometheus_config(self) -> str:
+        """Gets the prometheus config of the seekdb.
+
+        Returns:
+            str: The prometheus config of the seekdb.
+        """
+        req = self.create_request(f"/api/v1/system/external/prometheus", "GET")
+        return self._handle_ret_request(req, str)
+
+    def get_seekdb_alertmanager_config(self) -> str:
+        """Gets the alertmanager config of the seekdb.
+
+        Returns:
+            str: The alertmanager config of the seekdb.
         """
         req = self.create_request(f"/api/v1/system/external/alertmanager", "GET")
         return self._handle_ret_request(req, str)
