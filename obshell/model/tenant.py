@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .format import model_str
+from .format import model_str, CustomPage
 from .resource_pool import ResourcePoolWithUnit
 
 
@@ -144,6 +144,60 @@ class TenantInfo(TenantOverView):
     @classmethod
     def from_dict(cls, data: dict):
         return TenantInfo(data)
+
+    def __str__(self):
+        return model_str(self)
+
+
+class DeadLockNode:
+    """Represents a node in a deadlock graph."""
+
+    def __init__(self, data: dict):
+        self.raw_data = data
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return DeadLockNode(data)
+
+    def __str__(self):
+        return model_str(self)
+
+
+class DeadLock:
+    """Represents a deadlock event."""
+
+    def __init__(self, data: dict):
+        self.event_id = data.get("event_id", "")
+        self.report_time = data.get("report_time", "")
+        self.size = data.get("size", 0)
+        nodes_data = data.get("nodes", [])
+        self.nodes = [DeadLockNode.from_dict(node) for node in nodes_data]
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return DeadLock(data)
+
+    def __str__(self):
+        return model_str(self)
+
+
+class PaginatedDeadLockResponse:
+    """Paginated dead lock response model.
+
+    Attributes:
+        contents (list): List of DeadLock objects.
+        page (CustomPage): Pagination information.
+    """
+
+    def __init__(self, data: dict):
+        contents_data = data.get("contents")
+        self.contents = [DeadLock.from_dict(content) for content in contents_data] if contents_data else []
+        page_data = data.get("page")
+        self.page = CustomPage(page_data) if page_data else None
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(data)
 
     def __str__(self):
         return model_str(self)

@@ -16,6 +16,7 @@
 import time
 import base64
 import os
+import sys
 import requests
 import copy
 from typing import List
@@ -3079,16 +3080,15 @@ class ClientV1(Client):
         return self._handle_ret_request(req)
 
     def list_credentials(self, credential_id: int = None, target_type: str = None,
-                         key_word: str = None, page: int = 1, size: int = 10,
+                         page: int = 1, size: int = sys.maxsize,
                          sort: str = None, sort_order: str = None) -> security.PaginatedCredentialResponse:
         """Lists credentials with filtering, pagination, and sorting.
 
         Args:
             credential_id (int): Credential ID filter.
             target_type (str): Target type filter, currently only supports "HOST".
-            key_word (str): Keyword for searching.
             page (int): Page number (default: 1).
-            page_size (int): Page size (default: 10).
+            size (int): Page size (default: sys.maxsize).
             sort (str): Sort field.
             sort_order (str): Sort order (asc/desc).
 
@@ -3100,11 +3100,9 @@ class ClientV1(Client):
             data["credential_id"] = credential_id
         if target_type is not None:
             data["target_type"] = target_type
-        if key_word is not None:
-            data["key_word"] = key_word
         data["page"] = page
-        data["page_size"] = size # will be removed in the future
-        data["size"] = size # for compatibility the future
+        data["page_size"] = size
+        data["size"] = size
         if sort is not None:
             data["sort"] = sort
         if sort_order is not None:
@@ -3227,20 +3225,20 @@ class ClientV1(Client):
         req = self.create_request(f"/api/v1/obcluster/inspection/report/{report_id}", "GET")
         return self._handle_ret_request(req, inspection.InspectionReport)
 
-    def get_inspection_history(self, page: int = 1, size: int = 10,
+    def get_inspection_history(self, page: int = 1, size: int = sys.maxsize,
                                scenario: str = None, sort: str = "start_time,desc") -> inspection.PaginatedInspectionHistoryResponse:
         """Gets paginated inspection history with filters.
 
         Args:
             page (int): Page number (default: 1).
-            size (int): Page size (default: 10).
+            size (int): Page size (default: sys.maxsize).
             scenario (str): Scenario filter ('basic' or 'performance' or 'basic,performance').
             sort (str): Sort parameter (format: field,order).
 
         Returns:
             PaginatedInspectionHistoryResponse: Paginated list of inspection history.
         """
-        data = {"page": page, "size": size, "sort": sort}
+        data = {"sort": sort, "page": page, "size": size}
         if scenario is not None:
             data["scenario"] = scenario
         req = self.create_request("/api/v1/obcluster/inspection/reports", "GET", query_param=data)
@@ -3248,16 +3246,16 @@ class ClientV1(Client):
 
     # ==================== Session Module ====================
 
-    def get_tenant_sessions(self, tenant_name: str, page: int = None, size: int = None,
+    def get_tenant_sessions(self, tenant_name: str, page: int = 1, size: int = sys.maxsize,
                            user: str = None, db: str = None, client_ip: str = None,
                            session_id: str = None, active_only: bool = None,
                            svr_ip: str = None, sort: str = None) -> session.PaginatedTenantSessions:
-        """Gets tenant sessions with filtering and pagination.
+        """Gets tenant sessions with filtering.
 
         Args:
             tenant_name (str): The tenant name.
-            page (int): Page number.
-            size (int): Page size.
+            page (int): Page number (default: 1).
+            size (int): Page size (default: sys.maxsize).
             user (str): Database user filter.
             db (str): Database name filter.
             client_ip (str): Client IP filter.
@@ -3269,11 +3267,7 @@ class ClientV1(Client):
         Returns:
             PaginatedTenantSessions: Paginated list of tenant sessions.
         """
-        data = {}
-        if page is not None:
-            data["page"] = page
-        if size is not None:
-            data["size"] = size
+        data = {"page": page, "size": size}
         if user is not None:
             data["user"] = user
         if db is not None:
@@ -3343,6 +3337,21 @@ class ClientV1(Client):
         """
         req = self.create_request(f"/api/v1/tenant/{tenant_name}/sessions/stats", "GET")
         return self._handle_ret_request(req, session.TenantSessionStats)
+
+    def get_tenant_deadlocks(self, tenant_name: str, page: int = 1, size: int = sys.maxsize) -> tenant.PaginatedDeadLockResponse:
+        """Gets tenant deadlocks.
+
+        Args:
+            tenant_name (str): The tenant name.
+            page (int): Page number (default: 1).
+            size (int): Page size (default: sys.maxsize).
+
+        Returns:
+            PaginatedDeadLockResponse: Paginated list of tenant deadlocks.
+        """
+        data = {"page": page, "size": size}
+        req = self.create_request(f"/api/v1/tenant/{tenant_name}/deadlocks", "GET", query_param=data)
+        return self._handle_ret_request(req, tenant.PaginatedDeadLockResponse)
 
     # ==================== for seekdb ====================
     def set_seekdb_promethes_config(self, address: str, username: str = "", password: str = "") -> bool:

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .format import model_str
+from .format import model_str, CustomPage
 
 
 class Credential:
@@ -159,30 +159,6 @@ class PaginatedCredentialResponse:
         self.contents = [Credential(c) for c in contents_data] if contents_data else []
         page_data = data.get("page")
         self.page = CustomPage(page_data) if page_data else None
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(data)
-
-    def __str__(self) -> str:
-        return model_str(self)
-
-
-class CustomPage:
-    """Custom page model for pagination.
-
-    Attributes:
-        number (int): Current page number.
-        size (int): Page size.
-        total_pages (int): Total number of pages.
-        total_elements (int): Total number of elements.
-    """
-
-    def __init__(self, data: dict):
-        self.number = data.get("number")
-        self.size = data.get("size")
-        self.total_pages = data.get("total_pages")
-        self.total_elements = data.get("total_elements")
 
     @classmethod
     def from_dict(cls, data: dict):

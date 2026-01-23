@@ -24,3 +24,27 @@ def model_str(cls):
     members = ", ".join(
         f"\"{k}\":\"{__convert_value(v)}\"" for k, v in cls.__dict__.items())
     return '{' + members.replace("'", "\"") + '}'
+
+
+class CustomPage:
+    """Custom page model for pagination.
+
+    Attributes:
+        number (int): Current page number.
+        size (int): Page size.
+        total_pages (int): Total number of pages.
+        total_elements (int): Total number of elements.
+    """
+
+    def __init__(self, data: dict):
+        self.number = data.get("number")
+        self.size = data.get("size")
+        self.total_pages = data.get("total_pages")
+        self.total_elements = data.get("total_elements")
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(data)
+
+    def __str__(self) -> str:
+        return model_str(self)
