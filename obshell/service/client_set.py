@@ -15,6 +15,7 @@
 
 from obshell.auth.password import PasswordAuth
 from obshell.service.client_v1 import ClientV1
+from obshell.request import ProtocolOptions
 
 
 class ClientSet:
@@ -24,8 +25,9 @@ class ClientSet:
     def __init__(self, host: str,
                  port: int = 2886,
                  auth=PasswordAuth(""),
-                 timeout=DEFAULT_REQUEST_TIMEOUT):
-        self._v1 = ClientV1(host, port, auth, timeout)
+                 timeout=DEFAULT_REQUEST_TIMEOUT,
+                 protocol_options: ProtocolOptions = ProtocolOptions.http()):
+        self._v1 = ClientV1(host, port, auth, timeout, protocol_options)
 
     @property
     def v1(self) -> ClientV1:

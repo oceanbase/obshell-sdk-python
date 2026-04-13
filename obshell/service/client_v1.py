@@ -30,6 +30,7 @@ from obshell.auth.base import OBShellVersion, AuthType
 from obshell.auth.password import PasswordAuth
 from obshell.model import ob, info
 from obshell.request import BaseRequest
+from obshell.request import ProtocolOptions
 from obshell.model.ob import UpgradePkgInfo
 import obshell.model.task as task
 import obshell.model.info as info
@@ -94,7 +95,8 @@ class ClientV1(Client):
     def __init__(self, host: str,
                  port: int = 2886,
                  auth=None,
-                 timeout=DEFAULT_REQUEST_TIMEOUT):
+                 timeout=DEFAULT_REQUEST_TIMEOUT,
+                 protocol_options: ProtocolOptions = ProtocolOptions.http()):
         """Initialize a new ClientV1 instance.
 
         Args:
@@ -102,19 +104,20 @@ class ClientV1(Client):
             port (int, optional): The port number of the server. Defaults to 2886.
             auth (Auth, optional): The authentication method. Defaults to PasswordAuth("").
             timeout (int, optional): The timeout of the request. Defaults to 600.
+            protocol_options (ProtocolOptions): Scheme and TLS options (see ``Client``).
         """
         if auth is None:
             auth = PasswordAuth()
-        super().__init__(host, port, auth=auth, timeout=timeout)
+        super().__init__(host, port, auth=auth, timeout=timeout, protocol_options=protocol_options)
 
     def _set_password_candidate_auth(self, password: str):
         if self._get_auth().type == AuthType.PASSWORD:
             self._set_candidate_auth(PasswordAuth(password))
 
     def _encrypt_password(self, pwd: str) -> str:
-        agent = get_info(self.server)
+        agent = get_info(self.server, protocol_options=self.protocol_options)
         if agent.version < OBShellVersion.V424:
-            pk = get_public_key(self.server)
+            pk = get_public_key(self.server, protocol_options=self.protocol_options)
             key = RSA.import_key(base64.b64decode(pk))
             cipher = PKCS1_cipher.new(key)
             data_to_encrypt = bytes(pwd.encode('utf8'))
@@ -130,7 +133,7 @@ class ClientV1(Client):
         with open(pkg_path, "rb") as f:
             file = {'file': (file_name, f)}
             req = requests.Request('POST',
-                                   f"http://{self.server}/api/v1/ob/pkg/upload",
+                                   f"{self.protocol_options.protocol}://{self.server}/api/v1/ob/pkg/upload",
                                    files=file)
             prepared = req.prepare()
             return prepared.body, prepared.headers
@@ -184,8 +187,10 @@ class ClientV1(Client):
 
     def create_request(self, uri: str, method: str, data=None, query_param=None, need_auth=True, task_type="ob"):
         return BaseRequest(uri, method,
-                           self.host, self.port, query_param=query_param,
+                           self.host, self.port,
+                           protocol_options=self.protocol_options,
                            data=data, need_auth=need_auth,
+                           query_param=query_param,
                            task_type=task_type, timeout=self._timeout)
 
     # Function for OpenAPI
@@ -208,7 +213,8 @@ class ClientV1(Client):
             OBShellHandleError: Error message return by OBShell server.
         """
         try:
-            c = ClientV1(ip, port)
+            c = ClientV1(ip, port,
+                         protocol_options=self.protocol_options)
             auth = self._get_auth()
             c._set_auth(copy.deepcopy(auth))
             if agent_password is not None:
@@ -1643,7 +1649,8 @@ class ClientV1(Client):
         if the agent is "MASTER", all of the agents will be removed.
 
         """
-        agent = get_info(self.server)
+        agent = get_info(self.server,
+                         protocol_options=self.protocol_options)
         dag = self.get_agent_last_maintenance_dag()
         need_remove = False
         if (agent.identity == info.Agentidentity.FOLLOWER or
@@ -2435,7 +2442,7 @@ class ClientV1(Client):
         with open(pkg_path, "rb") as f:
             file = {'file': (file_name, f)}
             req = requests.Request('POST',
-                                   f"http://{self.server}/api/v1/obproxy/package",
+                                   f"{self.protocol_options.protocol}://{self.server}/api/v1/obproxy/package",
                                    files=file)
             prepared = req.prepare()
         req = self.create_request(

@@ -12,20 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import requests
 
 from obshell.model.info import AgentInfo
+from obshell.request import ProtocolOptions
 
 DEFAULT_TIMEOUT = 1000
 
 
-def get_info(server: str) -> AgentInfo:
-    url = f"http://{server}/api/v1/info"
-    resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
+def get_info(server: str, protocol_options: ProtocolOptions = ProtocolOptions.http()):
+    url = f"{protocol_options.protocol}://{server}/api/v1/info"
+    resp = requests.get(url, timeout=DEFAULT_TIMEOUT,
+                        verify=protocol_options.verify_cert, cert=protocol_options.client_cert)
     if resp.status_code != 200:
-        raise Exception(f"Failed to get info from {server}, "
+        raise Exception(f"Failed to get info from {server}, url: {url}, "
                         f"status code: {resp.status_code}")
     data = resp.json().get("data", {})
     if not data:
@@ -40,9 +40,10 @@ def get_info(server: str) -> AgentInfo:
     return info
 
 
-def get_public_key(server: str) -> str:
-    url = f"http://{server}/api/v1/secret"
-    resp = requests.get(url, timeout=DEFAULT_TIMEOUT)
+def get_public_key(server: str, protocol_options: ProtocolOptions = ProtocolOptions.http()):
+    url = f"{protocol_options.protocol}://{server}/api/v1/secret"
+    resp = requests.get(url, timeout=DEFAULT_TIMEOUT,
+                        verify=protocol_options.verify_cert, cert=protocol_options.client_cert)
     if resp.status_code != 200:
         raise Exception(f"Failed to get public key from {server}, "
                         f"status code: {resp.status_code}")

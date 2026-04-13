@@ -22,7 +22,8 @@ pip install obshell
 ## Quick Start
 Please ensure that OBShell is running when using it.
 ### Create a Client
-Create a specified version client.
+Create a specified version client. Optional argument **`protocol_options`** controls HTTP/HTTPS and TLS (defaults to plain HTTP via `ProtocolOptions.http()` if omitted).
+
 ```python
 from obshell import ClientV1
 from obshell.auth import PasswordAuth
@@ -30,7 +31,8 @@ from obshell.auth import PasswordAuth
 def main():
     client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
 ```
-Create client_set.
+Create `ClientSet` the same way (`ClientSet` forwards **`protocol_options`** to `ClientV1`).
+
 ```python
 from obshell import ClientSet
 from obshell.auth import PasswordAuth
@@ -38,6 +40,47 @@ from obshell.auth import PasswordAuth
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 ```
+
+### HTTPS and TLS (`protocol_options`)
+
+Import **`ProtocolOptions`** from `obshell.request` and pass it as **`protocol_options`** to `ClientV1` or `ClientSet`:
+
+- **`ProtocolOptions.http()`** — HTTP (default when you omit **`protocol_options`**).
+- **`ProtocolOptions.https()`** — HTTPS with default server certificate verification (typical for production).
+- **`ProtocolOptions.https_insecure()`** — HTTPS without verifying the server certificate. Use only in **non-production** (for example, self-signed certs in a lab); it weakens transport security.
+- **`ProtocolOptions.https(verify_cert=..., client_cert=...)`** — same meaning as [`requests`](https://requests.readthedocs.io/) **`verify`** and **`cert`**: `verify_cert` can be `True`, `False`, or a path to a CA bundle; `client_cert` can be a single PEM path or `(cert_pem, key_pem)`.
+
+```python
+from obshell import ClientV1
+from obshell.auth import PasswordAuth
+from obshell.request import ProtocolOptions
+
+client = ClientV1(
+    "11.11.11.1",
+    2886,
+    PasswordAuth("****"),
+    protocol_options=ProtocolOptions.https(),
+)
+```
+
+```python
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
+from obshell.request import ProtocolOptions
+
+client = ClientSet(
+    "11.11.11.1",
+    2886,
+    PasswordAuth("****"),
+    protocol_options=ProtocolOptions.https(
+        verify_cert="/path/to/ca.pem",
+        client_cert=("/path/to/client.crt", "/path/to/client.key"),
+    ),
+)
+```
+
+A PEM-formatted certificate file may use either `.pem` or `.crt` as its filename suffix.
+
 ### Deploy Cluster
 OBShell-SDK-Python provides two types of methods to deploy an OBShell cluster: the first immediately returns after successfully making a request to the OBShell API, and the second waits for the OBShell task to complete after the API request is successful before returning. The former executes the task asynchronously, while the latter executes the task synchronously.
 

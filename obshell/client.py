@@ -20,6 +20,7 @@ from obshell.auth.password import PasswordAuth
 from obshell.auth.base import AuthType, Auth
 from obshell.auth.base import AuthVersion, OBShellVersion
 from obshell.info import get_info
+from obshell.request import ProtocolOptions
 
 # error cod before obshell V4.3.1.0
 DECRYPT_ERROR_CODE = 1     # decrypt error
@@ -37,13 +38,16 @@ class Client:
                  host: str,
                  port: int = 2886,
                  auth=None,
-                 timeout=None) -> None:
+                 timeout=None,
+                 protocol_options: ProtocolOptions = ProtocolOptions.http()
+                 ) -> None:
         """
         Initialize a new Client instance.
 
         Args:
             host (str): The hostname or IP address of the server to connect to.
             port (int, optional): The port number of the server. Defaults to 2886.
+            protocol_options (ProtocolOptions): Scheme and TLS options for HTTP(S).
         """
         self._host = host
         self._port = port
@@ -51,6 +55,7 @@ class Client:
             auth = PasswordAuth()
         self._auth = auth
         self._timeout = timeout
+        self._protocol_options = protocol_options
         self.__candidate_auth = None
 
     @property
@@ -74,6 +79,10 @@ class Client:
     @property
     def timeout(self):
         return self._timeout
+
+    @property
+    def protocol_options(self):
+        return self._protocol_options
 
     def _execute(self, req: BaseRequest):
         """Executes a request.
@@ -136,7 +145,8 @@ class Client:
         if not self.__candidate_auth:
             return False
         try:
-            agent = get_info(f"{self.host}:{self.port}")
+            agent = get_info(f"{self.host}:{self.port}",
+                             protocol_options=self.protocol_options)
             if agent.version <= OBShellVersion.V424:
                 self._reset_auth()  # to confirm the pk and auth version is right
                 resp = self.__real_execute(req)
@@ -155,7 +165,8 @@ class Client:
 
     def __check_specified_auth(self):
         auth = self._auth
-        agent = get_info(f"{self.host}:{self.port}")
+        agent = get_info(f"{self.host}:{self.port}",
+                         protocol_options=self.protocol_options)
         if not auth.is_support(auth.get_version()):
             raise Exception(
                 f"Auth version {auth.get_version()} is not supported ")
@@ -180,7 +191,8 @@ class Client:
 
     def __confirm_auth_version(self):
         auth = self._auth
-        agent = get_info(self.server)
+        agent = get_info(self.server,
+                         protocol_options=self.protocol_options)
         supported_auth = []
         if len(agent.supported_auth) != 0:
             supported_auth = agent.supported_auth
@@ -197,6 +209,9 @@ class Client:
     def __real_execute(self, req: BaseRequest):
         if req.need_auth:
             self._auth.auth(req)
+        po = req.protocol_options
         resp = requests.request(req.method, req.url, data=req.data,
-                                headers=req.headers, timeout=req.timeout)
+                                headers=req.headers, timeout=req.timeout,
+                                verify=po.verify_cert,
+                                cert=po.client_cert)
         return resp

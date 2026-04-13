@@ -22,7 +22,8 @@ pip install obshell
 ## 快速使用
 使用时请确保 OBShell 处于运行状态。
 ### 创建客户端
-创建指定版本的 client。
+创建指定版本的 client。可选参数 **`protocol_options`** 用于配置 HTTP/HTTPS 与 TLS（省略时默认为 `ProtocolOptions.http()`，即明文 HTTP）。
+
 ```python
 from obshell import ClientV1
 from obshell.auth import PasswordAuth
@@ -30,7 +31,8 @@ from obshell.auth import PasswordAuth
 def main():
     client = ClientV1("11.11.11.1", 2886, PasswordAuth("****"))
 ```
-创建 client_set。
+`ClientSet` 用法相同，会将 **`protocol_options`** 传给内部的 `ClientV1`。
+
 ```python
 from obshell import ClientSet
 from obshell.auth import PasswordAuth
@@ -38,6 +40,47 @@ from obshell.auth import PasswordAuth
 def main():
     client = ClientSet("11.11.11.1", 2886, PasswordAuth("****"))
 ```
+
+### HTTPS 与 TLS（`protocol_options`）
+
+从 **`obshell.request`** 导入 **`ProtocolOptions`**，在构造 **`ClientV1`** 或 **`ClientSet`** 时传入 **`protocol_options`**：
+
+- **`ProtocolOptions.http()`** — HTTP（省略 **`protocol_options`** 时的默认行为）。
+- **`ProtocolOptions.https()`** — HTTPS，并按系统默认 CA 校验服务端证书（生产环境常用）。
+- **`ProtocolOptions.https_insecure()`** — HTTPS 但不校验服务端证书；仅建议在**非生产**（如内网自签证书）使用，会降低传输安全。
+- **`ProtocolOptions.https(verify_cert=..., client_cert=...)`** — 与 [requests](https://requests.readthedocs.io/) 的 **`verify`**、**`cert`** 含义一致：`verify_cert` 可为 `True` / `False` 或 CA 证书链 PEM 路径；`client_cert` 可为单个合并 PEM 路径，或 `(证书路径, 私钥路径)` 元组。
+
+```python
+from obshell import ClientV1
+from obshell.auth import PasswordAuth
+from obshell.request import ProtocolOptions
+
+client = ClientV1(
+    "11.11.11.1",
+    2886,
+    PasswordAuth("****"),
+    protocol_options=ProtocolOptions.https(),
+)
+```
+
+```python
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
+from obshell.request import ProtocolOptions
+
+client = ClientSet(
+    "11.11.11.1",
+    2886,
+    PasswordAuth("****"),
+    protocol_options=ProtocolOptions.https(
+        verify_cert="/path/to/ca.pem",
+        client_cert=("/path/to/client.crt", "/path/to/client.key"),
+    ),
+)
+```
+
+PEM 编码的证书文件后缀既可能是 `.pem`，也可能是 `.crt`。
+
 ### 部署 OBShell 集群
 OBShell-SDK-Python 提供了两类方法来创建一个 OBShell 集群，一是向 OBShell 请求对应的 API 成功后，立刻返回，二是在向 OBShell 请求 API 成功后，等待 OBShell 任务执行完成后再返回。前者任务异步执行，后者任务同步执行。
 
@@ -112,8 +155,8 @@ def main():
 ### 发起扩容
 将节点 '11.11.11.4' 扩容到节点 '11.11.11.1' 所在的集群中。
 ```python
-from obshell.service.client_set import ClientSet
-from obshell.sdk.auth.password import PasswordAuth
+from obshell import ClientSet
+from obshell.auth import PasswordAuth
 
 def main():
     client = ClientSet("111.11.11.1", 2886, PasswordAuth("****"))

@@ -4,4 +4,6 @@
 .git
 __pycache__
 .idea
- .DS_store
+.DS_store
+.venv/
+test/

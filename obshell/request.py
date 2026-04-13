@@ -13,6 +13,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import urllib
+from typing import Optional, Tuple, Union
+
+_VALID_PROTOCOLS = ("http", "https")
+
+
+def _validate_tls_options(verify_cert: Union[bool, str],
+                          client_cert: Optional[Union[str, Tuple[str, str]]]) -> None:
+    if not isinstance(verify_cert, (bool, str)):
+        raise ValueError(
+            "verify_cert must be bool or a path to a CA bundle (str), "
+            "same as requests' verify argument.")
+    if client_cert is None:
+        return
+    if isinstance(client_cert, str):
+        return
+    if (isinstance(client_cert, tuple) and len(client_cert) == 2 and
+            isinstance(client_cert[0], str) and isinstance(client_cert[1], str)):
+        return
+    raise ValueError(
+        "client_cert must be None, a path to a combined PEM (str), or "
+        "(cert_path, key_path), same as requests' cert argument.")
+
+
+class ProtocolOptions:
+    def __init__(self, protocol: str,
+                 verify_cert: Union[bool, str] = True,
+                 client_cert: Optional[Union[str, Tuple[str, str]]] = None):
+        if protocol not in _VALID_PROTOCOLS:
+            raise ValueError(
+                f"protocol must be one of {_VALID_PROTOCOLS}, got {protocol!r}")
+        _validate_tls_options(verify_cert, client_cert)
+        self._protocol = protocol
+        self._verify_cert = verify_cert
+        self._client_cert = client_cert
+
+    @staticmethod
+    def http():
+        return ProtocolOptions(protocol="http")
+
+    @staticmethod
+    def https_insecure():
+        return ProtocolOptions(protocol="https", verify_cert=False)
+
+    @staticmethod
+    def https(verify_cert: Union[bool, str] = True, client_cert: Optional[Union[str, Tuple[str, str]]] = None):
+        return ProtocolOptions(protocol="https", verify_cert=verify_cert, client_cert=client_cert)
+
+    @property
+    def protocol(self):
+        return self._protocol
+
+    @property
+    def verify_cert(self):
+        return self._verify_cert
+
+    @property
+    def client_cert(self):
+        return self._client_cert
 
 
 class BaseRequest:
@@ -20,7 +78,7 @@ class BaseRequest:
                  method: str,
                  host: str,
                  port: int = 2886,
-                 protocol: str = "http",
+                 protocol_options: ProtocolOptions = None,
                  need_auth: bool = False,
                  data: dict = None,
                  query_param: dict = None,
@@ -33,11 +91,13 @@ class BaseRequest:
             headers = {}
         if query_param is None:
             query_param = {}
+        if protocol_options is None:
+            protocol_options = ProtocolOptions.http()
         self.uri = urllib.parse.quote(uri)
         self.method = method
         self.host = host
         self.port = port
-        self.protocol = protocol
+        self._protocol_options = protocol_options
         self.need_auth = need_auth
         self.data = data
         self.query_param = query_param
@@ -45,6 +105,14 @@ class BaseRequest:
         self.headers = headers
         self.timeout = timeout
         self.task_type = task_type
+
+    @property
+    def protocol_options(self) -> ProtocolOptions:
+        return self._protocol_options
+
+    @property
+    def protocol(self) -> str:
+        return self._protocol_options.protocol
 
     @property
     def url(self):

@@ -17,6 +17,7 @@ import json
 import time
 import base64
 from urllib.parse import urlparse
+
 import requests
 
 from Crypto.Cipher import AES
@@ -29,6 +30,7 @@ from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from obshell.auth import base
 from obshell.model.info import Agentidentity
 from obshell.info import get_public_key, get_info
+from obshell.request import ProtocolOptions
 
 
 class PasswordAuth(base.Auth):
@@ -87,13 +89,14 @@ class PasswordAuthMethod:
         self.pk = None
         self.check_identity = False
 
-    def _init_pk(self, server: str):
+    def _init_pk(self, server: str, protocol_options: ProtocolOptions):
         if self.pk is None:
-            self.pk = get_public_key(server)
+            self.pk = get_public_key(server,
+                                     protocol_options=protocol_options)
 
-    def _check(self, server: str):
+    def _check(self, server: str, protocol_options: ProtocolOptions):
         if not self.check_identity:
-            info = get_info(server)
+            info = get_info(server, protocol_options=protocol_options)
             if info.identity == Agentidentity.SINGLE:
                 self.password = ""
             if info.security:
@@ -109,8 +112,9 @@ class PasswordAuthMethod:
 class PasswordAuthMethodV1(PasswordAuthMethod):
 
     def auth(self, req: requests.Request) -> None:
-        self._check(req.server)
-        self._init_pk(req.server)
+        po = req.protocol_options
+        self._check(req.server, po)
+        self._init_pk(req.server, po)
         auth_json = json.dumps(
             {'password': self.password, 'ts': int(time.time() + self.lifetime)})
         key = RSA.import_key(base64.b64decode(self.pk))
@@ -143,8 +147,9 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
         return base64.b64encode(encrypted).decode('utf-8')
 
     def auth(self, req: requests.Request) -> None:
-        self._check(req.server)
-        self._init_pk(req.server)
+        po = req.protocol_options
+        self._check(req.server, po)
+        self._init_pk(req.server, po)
 
         # encrypt body before build header.
         aes_key = get_random_bytes(16)
