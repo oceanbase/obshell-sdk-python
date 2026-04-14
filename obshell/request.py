@@ -50,14 +50,40 @@ class ProtocolOptions:
 
     @staticmethod
     def http():
+        """Build options for plain HTTP (no TLS).
+        Use when OBShell is served over ``http://``. No certificate verification
+        or client certificate applies.
+        Returns:
+            ProtocolOptions: ``protocol`` is ``http``, default TLS fields unused.
+        """
         return ProtocolOptions(protocol="http")
 
     @staticmethod
     def https_insecure():
+        """Build options for HTTPS without verifying the server certificate.
+        Equivalent to ``requests`` with ``verify=False``. Suitable only for
+        non-production (e.g. self-signed certs in a lab); do not use on
+        untrusted networks.
+        Returns:
+            ProtocolOptions: ``protocol`` is ``https``, ``verify_cert`` is
+            ``False``, no client certificate.
+        """
         return ProtocolOptions(protocol="https", verify_cert=False)
 
-    @staticmethod
     def https(verify_cert: Union[bool, str] = True, client_cert: Optional[Union[str, Tuple[str, str]]] = None):
+        """Build options for HTTPS with configurable server trust and optional mTLS.
+        Maps to ``requests`` ``verify`` and ``cert`` for outbound calls.
+        Args:
+            verify_cert: How to verify the server certificate. ``True`` uses the
+                default CA bundle; ``False`` disables verification; a ``str`` is a
+                path to a CA bundle or certificate chain (PEM).
+            client_cert: Client certificate for mutual TLS. ``None`` means no
+                client cert. A ``str`` is a path to a PEM containing cert (and
+                often key); a ``(cert_path, key_path)`` tuple uses separate files.
+        Returns:
+            ProtocolOptions: ``protocol`` is ``https`` with the given
+            ``verify_cert`` and ``client_cert``.
+        """
         return ProtocolOptions(protocol="https", verify_cert=verify_cert, client_cert=client_cert)
 
     @property
