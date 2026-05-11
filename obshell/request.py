@@ -131,6 +131,7 @@ class BaseRequest:
         self.headers = headers
         self.timeout = timeout
         self.task_type = task_type
+        self.aes_keys: bytes = None  # populated by PasswordAuthMethodV2.auth() for encrypted response decryption
 
     @property
     def protocol_options(self) -> ProtocolOptions:

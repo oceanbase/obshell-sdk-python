@@ -189,6 +189,7 @@ class PasswordAuthMethodV2(PasswordAuthMethod):
         }
 
         req.headers[header] = self.encrypt_header(headers)
+        req.aes_keys = aes_key + aes_iv
         return
 
 

@@ -43,6 +43,7 @@ import obshell.model.user as user
 import obshell.model.security as security
 import obshell.model.inspection as inspection
 import obshell.model.session as session
+import obshell.model.seekdb_standby as seekdb_standby
 
 
 class OBShellHandleError(Exception):
@@ -3412,3 +3413,260 @@ class ClientV1(Client):
         """
         req = self.create_request(f"/api/v1/system/external/alertmanager", "GET")
         return self._handle_ret_request(req, str)
+
+    # ==================== for seekdb standby ====================
+
+    def get_seekdb_standby_token(self, force: bool = False) -> seekdb_standby.TokenResp:
+        """Generates or retrieves the local standby token.
+
+        The token is used for peer-to-peer authentication between obshell
+        instances. By default, the call is idempotent: if a token already
+        exists, the same token is returned. Pass force=True to rotate the
+        token (the old token is immediately invalidated).
+
+        When encryption is enabled (the default), the server returns an
+        AES-encrypted token.  The AES key and IV are generated during
+        PasswordAuthMethodV2.auth() and stored on the request object so
+        they can be used here to decrypt the response.
+
+        Args:
+            force (bool): If True, generate a new token even if one already
+                exists. Defaults to False.
+
+        Returns:
+            seekdb_standby.TokenResp with the token string.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/token", "POST",
+                                  data={"force": force})
+        resp = self._execute(req)
+        if resp.status_code >= 400:
+            raise OBShellHandleError(resp.json()['error'])
+        if resp.status_code == 204:
+            return None
+        if resp.status_code != 200:
+            raise Exception(f"Unknown error: {resp.json()}")
+        data = resp.json()['data']
+        if isinstance(data, str):
+            # Encryption enabled: data is an AES-CBC encrypted, base64-encoded token.
+            # Decrypt it using the AES key/IV stored on the request by PasswordAuthMethodV2.
+            if req.aes_keys is None:
+                raise Exception(
+                    "Server returned an encrypted token but no AES key is available. "
+                    "Ensure PasswordAuthMethodV2 is being used.")
+            key_size = 16
+            aes_key = req.aes_keys[:key_size]
+            aes_iv = req.aes_keys[key_size:]
+            from Crypto.Cipher import AES as _AES
+            from Crypto.Util.Padding import unpad as _unpad
+            raw = base64.b64decode(data)
+            cipher = _AES.new(aes_key, _AES.MODE_CBC, aes_iv)
+            plaintext = _unpad(cipher.decrypt(raw), _AES.block_size).decode('utf-8')
+            return seekdb_standby.TokenResp.from_dict({"token": plaintext})
+        # Encryption disabled: data is a dict with a "token" key.
+        return seekdb_standby.TokenResp.from_dict(data)
+
+    def set_seekdb_standby_pair(self,
+                                peer_host: str,
+                                peer_obshell_port: int,
+                                peer_rpc_port: int,
+                                direction: str,
+                                token: str) -> bool:
+        """Writes or overwrites a standby peer record on the local node.
+
+        This should be called by deployment tools (OBD/OCP) after both
+        SeekDB instances and their obshell processes are running.  Each
+        side of the pair must call this independently:
+
+        - Primary side: direction="DOWNSTREAM", token=<standby's token>
+        - Standby side: direction="UPSTREAM",   token=<primary's token>
+
+        When direction is UPSTREAM, the call also executes
+        ``ALTER SYSTEM SET log_restore_source`` so that the standby starts
+        replicating from the upstream immediately.
+
+        Args:
+            peer_host (str): Peer IP / hostname (shared for obshell HTTP
+                calls and SeekDB log_restore_source).
+            peer_obshell_port (int): Peer obshell port.
+            peer_rpc_port (int): Peer SeekDB RPC port.
+            direction (str): "UPSTREAM" or "DOWNSTREAM".
+            token (str): The **peer's** token obtained via
+                get_seekdb_standby_token() on the peer node.
+
+        Returns:
+            True on success.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/pair", "PUT",
+                                  data={
+                                      "peer_host": peer_host,
+                                      "peer_obshell_port": peer_obshell_port,
+                                      "peer_rpc_port": peer_rpc_port,
+                                      "direction": direction,
+                                      "token": token,
+                                  })
+        return self._handle_ret_request(req)
+
+    def get_seekdb_standby_status(self) -> seekdb_standby.StandbyStatusResp:
+        """Returns the local and all configured peer standby statuses.
+
+        The local status is read directly from the local SeekDB instance.
+        Peer statuses are fetched from each peer's obshell via the internal
+        RPC channel; a peer that is unreachable will appear in the peers list
+        with sync_status="NETWORK_ERROR".
+
+        Returns:
+            seekdb_standby.StandbyStatusResp containing local status and a
+            list of peer statuses.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/status", "GET")
+        return self._handle_ret_request(req, seekdb_standby.StandbyStatusResp)
+
+    def switchover_seekdb_standby(self,
+                                  peer_host: str,
+                                  peer_obshell_port: int,
+                                  delay_threshold_seconds: int = 10) -> task.DagDetailDTO:
+        """Triggers a lossless Switchover DAG (primary → standby).
+
+        This method must be called on the **primary** obshell.  The primary
+        obshell acts as the coordinator and drives the full Switchover flow:
+        primary TO STANDBY, then standby TO PRIMARY.
+
+        Before creating the DAG, the API layer checks:
+        - Local role must be PRIMARY.
+        - Replication lag to the target peer must not exceed
+          delay_threshold_seconds (default 10 s).
+
+        Returns as soon as the DAG is created.  Use wait_dag_succeed to
+        poll for completion, or call switchover_seekdb_standby_sync instead.
+
+        Args:
+            peer_host (str): Host of the target standby peer.
+            peer_obshell_port (int): obshell port of the target standby peer.
+            delay_threshold_seconds (int): Maximum allowed replication lag in
+                seconds before the switchover is rejected. Defaults to 10.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/switchover", "POST",
+                                  data={
+                                      "peer_host": peer_host,
+                                      "peer_obshell_port": peer_obshell_port,
+                                      "delay_threshold_seconds": delay_threshold_seconds,
+                                  })
+        return self._handle_ret_request(req, task.DagDetailDTO)
+
+    def switchover_seekdb_standby_sync(self,
+                                       peer_host: str,
+                                       peer_obshell_port: int,
+                                       delay_threshold_seconds: int = 10) -> task.DagDetailDTO:
+        """Triggers a lossless Switchover and waits for it to complete.
+
+        See also switchover_seekdb_standby.
+
+        Args:
+            peer_host (str): Host of the target standby peer.
+            peer_obshell_port (int): obshell port of the target standby peer.
+            delay_threshold_seconds (int): Maximum allowed replication lag in
+                seconds before the switchover is rejected. Defaults to 10.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+            TaskExecuteFailedError: Raised when the DAG fails.
+        """
+        dag = self.switchover_seekdb_standby(peer_host, peer_obshell_port,
+                                             delay_threshold_seconds)
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def activate_seekdb_standby(self) -> task.DagDetailDTO:
+        """Triggers an Activate DAG (lossy forced promotion to primary).
+
+        This method must be called on the **standby** obshell.  It performs
+        ``ALTER SYSTEM ACTIVATE STANDBY`` and then best-effort cleans up the
+        local peer metadata.
+
+        Use this operation when the primary is unavailable and a failover is
+        required.  If the primary is still healthy, use
+        switchover_seekdb_standby instead.
+
+        Returns as soon as the DAG is created.  Use wait_dag_succeed to poll
+        for completion, or call activate_seekdb_standby_sync instead.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/activate", "POST",
+                                  data={})
+        return self._handle_ret_request(req, task.DagDetailDTO)
+
+    def activate_seekdb_standby_sync(self) -> task.DagDetailDTO:
+        """Triggers an Activate DAG and waits for it to complete.
+
+        See also activate_seekdb_standby.
+
+        Returns:
+            Task detail as task.DagDetailDTO.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+            TaskExecuteFailedError: Raised when the DAG fails.
+        """
+        dag = self.activate_seekdb_standby()
+        return self.wait_dag_succeed(dag.generic_id)
+
+    def delete_seekdb_standby_pair(self,
+                                   peer_host: str,
+                                   peer_obshell_port: int,
+                                   notify_peer: bool = False) -> bool:
+        """Decouples a standby peer and removes its record from the local node.
+
+        If the local SeekDB role is STANDBY at call time, the server first
+        executes ``ALTER SYSTEM ACTIVATE STANDBY`` to promote the local node
+        to primary before removing the pair record.  This is a lossy operation
+        for a standby node; use switchover_seekdb_standby for a lossless
+        role swap when the primary is still reachable.
+
+        If the local role is already PRIMARY the call returns an error; the
+        primary side does not need to perform a decouple operation.
+
+        When notify_peer=True, the local obshell will attempt to notify the
+        peer to delete the corresponding record on its side.  If the peer is
+        unreachable, the local deletion still succeeds.
+
+        Args:
+            peer_host (str): Host of the peer to remove.
+            peer_obshell_port (int): obshell port of the peer to remove.
+            notify_peer (bool): Whether to notify the peer to delete its
+                corresponding record. Defaults to False.
+
+        Returns:
+            True on success.
+
+        Raises:
+            OBShellHandleError: Error message returned by OBShell server.
+        """
+        req = self.create_request("/api/v1/seekdb/standby/pair", "DELETE",
+                                  data={
+                                      "peer_host": peer_host,
+                                      "peer_obshell_port": peer_obshell_port,
+                                      "notify_peer": notify_peer,
+                                  })
+        return self._handle_ret_request(req)
